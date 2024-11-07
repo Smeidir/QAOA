@@ -3,6 +3,7 @@ import rustworkx as rx
 from rustworkx import is_connected
 from rustworkx.visualization import mpl_draw as draw_graph
 import numpy as np
+import params
 
 
 class MaxCutProblem():
@@ -11,8 +12,10 @@ class MaxCutProblem():
     Graph_size: size of graph. Only relevant for random graphs
     create_random: set to true for making random graphs.
     """
+    #TODO: make the graphs not have multiple edges between the same nodes
+    #TODO: maybe make it faster?
 
-    def __init__(self, graph_size, create_random = False):
+    def __init__(self):
         pass
     
     def get_graph(self,graph_size, create_random = False):

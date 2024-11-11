@@ -18,7 +18,7 @@ class MaxCutProblem():
     def __init__(self):
         pass
     
-    def get_graph(self,graph_size, create_random = False):
+    def get_graph(self,graph_size, create_random = False, random_weights = False, lb= 0, ub = 1):
 
         if not create_random: 
             graph = rx.PyGraph()
@@ -28,6 +28,18 @@ class MaxCutProblem():
             return graph
         else: 
             default_weight = 1
+            graph = rx.undirected_gnm_random_graph(graph_size, 2*graph_size)
+            edge_list = graph.edge_list()
+            if random_weights: 
+                rng = np.random.default_rng()
+                edge_list = [edge+(float(rng.uniform(lb,ub,1)),) for edge in edge_list if (edge[1],edge[0]) not in edge_list] #remove dupes
+            else: #kjører ikke fort, er ikke pent, men funker
+                edge_list = [edge+(default_weight,) for edge in edge_list if (edge[1],edge[0]) not in edge_list] #remove dupes
+            print(edge_list)
+            graph.clear_edges()
+            graph.add_edges_from(edge_list)
+            
+            return graph
             graph = rx.PyGraph()
             rng = np.random.default_rng(seed = 173)
             graph.add_nodes_from(np.arange(0,graph_size,1))

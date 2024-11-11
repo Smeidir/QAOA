@@ -1,2 +1,2 @@
-graph_size = 5
-depth = 3
+graph_size = 7
+depth = 2

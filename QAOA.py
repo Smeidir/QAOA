@@ -8,6 +8,12 @@ import numpy as np
 from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
 from scipy.optimize import minimize
 from qiskit_ibm_runtime import SamplerV2 as Sampler
+from qiskit import QuantumCircuit
+from qiskit.circuit.library import HGate
+from qiskit.circuit import Parameter
+import rustworkx as rx
+
+from solver import Solver
 
 class QAOArunner():
     """
@@ -18,11 +24,18 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, simulation=True, initialization="normal",optimizer="COBYLA"¨, multiangle =False):
+    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='normal', solver = None):
         self.graph = graph
         self.simulation = simulation
-        self.initialization = initialization
+        self.param_initialization = param_initialization
+        self.qaoa_variant = qaoa_variant
         self.optimizer = optimizer
+        self.solution = None
+        self.solver = solver
+
+
+        #TODO: calculate num_qubits. For now, it's just the amount of nodes
+        self.num_qubits = len(self.graph.nodes())
         
 
     def build_circuit(self):
@@ -32,9 +45,9 @@ class QAOArunner():
         strings with mostly I-s and some Z-s. 
         They represent Z-operations on some qubits and I-operations on others.
         Cost hamiltonian is the way the cirucit understands costs (?)
-        Returns the cost hamiltonian
+        updates self.: backend, circuit, cost_hamiltonian
         """
-
+        
         pauli_list = []
         for edge in list(self.graph.edge_list()):
             paulis = ["I"]*len(self.graph)
@@ -44,23 +57,54 @@ class QAOArunner():
             pauli_list.append(("".join(paulis)[::-1], weight))
         cost_hamiltonian = SparsePauliOp.from_list(pauli_list)
 
-        circuit = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
-        circuit.measure_all()
+        if self.qaoa_variant =='normal':
+            if self.param_initialization == 'warm_start':
+                solver = Solver(self.graph, relaxed = True)
+                solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
+                initial_state = QuantumCircuit(self.num_qubits)
+                thetas = 2*np.arcsin(np.sqrt(solution_values))
+                for qubit in range(self.num_qubits): #must check if they are the correct indices - qubits on IBM might be opposite ordering
+                    initial_state.ry(thetas[qubit],qubit)
+                mixer_state = QuantumCircuit(self.num_qubits)
+                for qubit in range(self.num_qubits):
+                    mixer_state.ry(thetas[qubit],qubit) 
+                    mixer_state.rz('β', qubit)#TODO: teste denne, at det blir flere β-parametere
+                    mixer_state.ry(-thetas[qubit],qubit)
+                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth, initial_state=initial_state, mixer_operator=mixer_state)
 
+            else:
+                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
+                qc.measure_all()
+        else: #TODO: implement check for multiangle
+            multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(params.depth)]
+            multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(params.depth)]
+    
+            qc = QuantumCircuit(self.num_qubits)
+            for _ in range(self.num_qubits): 
+                qc.rz(np.pi/2, _) #not hadamards, but close. The same as qiskit uses
+                qc.sx(_)
+                qc.rz(np.pi/2, _)
+
+            for i in range(params.depth):
+                for idx, edge in enumerate(self.graph.edge_list()):
+                    qc.cx(edge[0], edge[1])
+                    qc.rz(multiangle_gammas[i][idx], edge[1])
+                    qc.cx(edge[0], edge[1])
+                for idx in range(self.num_qubits):#TODO: add multiangle here
+                    qc.rx(2*multiangle_betas[i][idx], idx)
+            qc.measure_all()
 
         self.build_backend()
-        pm = generate_preset_pass_manager(optimization_level=2,backend=self.backend)
-
-        candidate_circuit = pm.run(circuit)
+        pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
+        candidate_circuit = pm.run(qc)
         self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
-
         
-    
+ 
     def build_backend(self):
 
         if self.simulation: 
-            self.backend = GenericBackendV2(num_qubits=params.graph_size) #TODO: make this generic for k-cut
+            self.backend = GenericBackendV2(num_qubits=len(self.graph)) #TODO: make this generic for k-cut
         else:
             raise NotImplementedError('Running on IBM not implemented yet. Set Simulation to True instead to run locally.')
         
@@ -68,17 +112,33 @@ class QAOArunner():
         self.circuit.draw('mpl', fold=False, idle_wires=False)
 
     def get_init_params(self): #TODO: add support for multiangle
+        supported_params = ['gaussian','uniform','machine_learning'] #TODO: move into init
 
-        match self.initialization: 
-            case 'warm_start': 
-                raise NotImplementedError('Not Implemented yet. Use normal instead.') 
-            case 'normal':
-                initial_gamma = np.pi
-                initial_beta = np.pi/2 #todo change 
-                init_params = [(initial_gamma, initial_beta) for _ in range(params.depth)]
+        if self.param_initialization not in supported_params:
+            raise ValueError(f'Non-supported param initializer. Your param: {self.param_initialization} not in supported parameters:{supported_params}.')
 
-                init_params = [number for tup in init_params for number in tup]
+        param_length = None #none so if its not changed its easier to see bugs - if it was 0 might be bugs furhter down the line
+        if self.qaoa_variant == "normal":
+            param_length = 2
+        elif self.qaoa_variant == "multiangle":
+            param_length = self.num_qubits + len(self.graph.edges())
+
+        match self.param_initialization: 
+            case 'uniform':
+                param_length = param_length*params.depth
+                init_params = np.random.uniform(0,np.pi,param_length)
+                print(f'Init_params, for error checking: {init_params}')
                 return init_params
+            case 'gaussian':
+                param_length = param_length*params.depth
+                init_params = np.random.normal(0,np.pi,param_length)
+                print(f'Init_params, for error checking: {init_params}')
+                return init_params
+
+            case 'machine_learning':
+                raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
+
+
 
     def run(self):
         self.objective_func_vals = []
@@ -98,6 +158,16 @@ class QAOArunner():
             )
         print(result)
         self.result = result
+        self.circuit = self.circuit.assign_parameters(self.result.x)
+        self.solution = self.calculate_solution()
+        self.objective_value = self.evaluate_sample()
+        
+
+    def evaluate_sample(self) -> float:
+        assert len(self.solution) == len(list(self.graph.nodes())), "The length of x must coincide with the number of nodes in the graph."
+        return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
+
+
 
 
     def cost_func_estimator(self,params, ansatz, hamiltonian, estimator):
@@ -128,6 +198,11 @@ class QAOArunner():
         plt.xlabel("Iteration")
         plt.ylabel("Cost")
         plt.show()
+    def plot_result(self):
+        colors = ["tab:grey" if i == 0 else "tab:purple" for i in self.solution]
+        pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
+        rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
+
 
     def get_prob_distribution(self):
         """
@@ -137,8 +212,8 @@ class QAOArunner():
         TODO: make better?
         """
 
-        optimized_circuit = self.circuit.assign_parameters(self.result.x)
-        pub = (optimized_circuit,)
+
+        pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=10000
 
@@ -158,7 +233,47 @@ class QAOArunner():
         values = list(final_distribution_int.values())
 
         most_likely = keys[np.argmax(np.abs(values))]
-        most_likely_bitstring = to_bitstring(most_likely, params.graph_size)#TODO: change to amount of qubits
+        most_likely_bitstring = to_bitstring(most_likely, len(self.graph))#TODO: change to amount of qubits
         most_likely_bitstring.reverse()
 
         print("Result bitstring:", most_likely_bitstring)
+
+    def calculate_solution(self): #TODO: må da finnes en lettere måte?
+        #TODO: support fior å finne flere av de mest sannsynlige?
+        
+        pub = (self.circuit,)
+        sampler = Sampler(mode=self.backend)
+        sampler.options.default_shots=10000
+
+        job = sampler.run([pub], shots=int(1e4))
+        counts_int = job.result()[0].data.meas.get_int_counts()
+        print(counts_int)
+        counts_bin = job.result()[0].data.meas.get_counts()
+        shots = sum(counts_int.values())
+        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
+        print(final_distribution_int)
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
+        keys = list(final_distribution_int.keys())
+        values = list(final_distribution_int.values())
+
+        most_likely = keys[np.argmax(np.abs(values))]
+        most_likely_bitstring = to_bitstring(most_likely,len(self.graph))#TODO: change to amount of qubits
+        most_likely_bitstring.reverse()
+
+        return most_likely_bitstring
+
+    def compare_solutions(self, classic_solution):
+        if not self.solution:
+            raise ReferenceError("Solution not initalized yet. run()-function must be called before solution can be generated.")
+        assert len(self.solution) == len(classic_solution[0]), 'Solutions not the same length.' #TODO: error relating to length of qubits for kcut which requires more qubits
+        bools = [a==b for a,b in zip(classic_solution[0],self.solution)]
+        bools_reversed =[a!=b for a,b in zip(classic_solution[0],self.solution)]
+        print("Result quantum", self.solution, "Objective value: ", self.objective_value)
+        print("Result input (classical)", classic_solution[0], "Objective Value: ", classic_solution[1])
+        print("Same solution", all(bools) or all(bools_reversed)) #same cut but different partitions
+        print("Same objective function value: ", classic_solution[1] == self.objective_value)
+

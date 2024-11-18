@@ -6,7 +6,23 @@ import rustworkx as rx
 from rustworkx import is_connected
 from rustworkx.visualization import mpl_draw as draw_graph
 from load_data import load_graph_from_csv
-from cyipopt import minimize_ipopt
+from mystic.solvers import fmin, fmin_powell
+from mystic.monitors import VerboseMonitor
+import random
+import numpy as np
+from MaxCutProblem import MaxCutProblem
+import time
+from qiskit_optimization.translators import from_docplex_mp
+from qiskit_algorithms import QAOA, NumPyMinimumEigensolver
+from qiskit_algorithms.optimizers import COBYLA
+from qiskit_ibm_runtime import Sampler
+from qiskit_optimization.algorithms import (
+    MinimumEigenOptimizer,
+    RecursiveMinimumEigenOptimizer,
+    SolutionSample,
+    OptimizationResultStatus,
+)
+from qiskit.providers.fake_provider import GenericBackendV2
 
 class Solver():
     """
@@ -16,13 +32,19 @@ class Solver():
     """
     
     def __init__(self, graph, relaxed = False):
+
+        """
+        Initializes the model with the given problem, but does not solve.
+        If relaxed is set to true it changes the behaviour when solve is called. it will then find a local optima, 
+        as cplex cannot handle non-convex continous variables.
+        """
         self.graph = graph
         self.model = Model(name="MaxCut")
         self.relaxed = relaxed
 
         if relaxed: 
             self.variables = self.model.continuous_var_list(len(self.graph),lb=0,ub=1, name='x')
-            self.model.parameters.optimalitytarget =3
+            self.model.parameters.optimalitytarget =2 #local minima
         else:
             self.variables = self.model.binary_var_list(len(self.graph), name='x')
         
@@ -37,15 +59,27 @@ class Solver():
                     except NoEdgeBetweenNodes:
                         pass
         self.objective = objective
+        self.model.objective=objective
+        self.model.maximize(self.objective)
 
-    def solve(self):
+    def get_qp(self):
+        return from_docplex_mp(self.model)
         
-        print(f'Objective to maximize: {self.objective} for relaxed = {self.relaxed}')
+
+    def solve(self, verbose = False):
+        """
+        Solves the problem based on parameter relaxed.
+        Returns bitstring, solution_value
+        """
+        
+        if verbose:
+            print(f'Objective to maximize: {self.objective} for relaxed = {self.relaxed}')
         self.model.maximize(self.objective)
 
         solution = self.model.solve()
         bitstring = [var.solution_value for var in self.variables]
-        print(solution.get_objective_value(), bitstring)
+        if verbose:
+            print(solution.get_objective_value(), bitstring)
         return bitstring, solution.get_objective_value()
 
     
@@ -60,7 +94,10 @@ class Solver():
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
         rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
 solver = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'), True)
-solver.solve()
+solver.solve(True)
+
+#mystic is legacy for testing - unless we need it later.
+
 def max_cut_objective(x, graph):
     objective = 0
     for i in range(len(x)):
@@ -69,21 +106,114 @@ def max_cut_objective(x, graph):
                 objective += x[i] + x[j] - 2 * x[i] * x[j]
     return -objective  # Minimize the negative to maximize the original objective
 
-def max_cut_constraint(x):
-    return x - 1
 
-def solve_with_ipopt(graph):
-    x0 = [0.5] * len(graph)  # Initial guess
-    bounds = [(0, 1) for _ in range(len(graph))]
-    constraints = {'type': 'ineq', 'fun': max_cut_constraint}
+
+def solve_with_mystic(graph):
+    x0 = [0.0] * len(graph)  # Initial guess
+    bounds = [(0,1) for _ in range(len(graph))]
     
-    result = minimize_ipopt(fun=max_cut_objective, x0=x0, args=(graph,), bounds=bounds, constraints=constraints)
+    #monitor = VerboseMonitor(100)
+
+    result = fmin_powell(max_cut_objective, x0, args=(graph,), bounds=bounds,maxiter=1000, ftol=1e-6, verbose=False)
     
-    solution_values = result.x
-    print(result.fun, solution_values)
-    return solution_values, -result.fun
+    solution_values = result
+    objective_value = -max_cut_objective(solution_values, graph)
+    return solution_values, objective_value
 
-bitstring, objective_value = solve_with_ipopt(load_graph_from_csv('data/11_nodes_links_scand.csv'))
-print(f'Objective value: {objective_value}, Bitstring: {bitstring}')
+bitstring, objective_value = solve_with_mystic(load_graph_from_csv('data/11_nodes_links_scand.csv'))
+print(f'Objective value: {objective_value:.6f}, Bitstring: {[f"{bit:.4f}" for bit in bitstring]}')
 
-   
+
+
+
+
+def is_almost_integer_solution(solution, tolerance=0.1):
+    
+    conclusion = all(abs(x - round(x)) < tolerance for x in solution)
+    #if not conclusion:
+     #   print('Not integers:' ,solution)
+    return conclusion
+
+num_graphs = 100
+sizes = range(10, 51)
+mystic_better_count = 0
+integer_solution_count = 0
+results = []
+
+problem = MaxCutProblem()
+
+
+backend = GenericBackendV2(num_qubits=11)
+qaoa_mes = QAOA(sampler=Sampler(mode = backend), optimizer=COBYLA(), initial_point=[0.0,0.0,0.0,0.0,0.0,0.0], reps = 3)
+
+graph = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'))
+print(graph.get_qp().prettyprint())
+
+qaoa = MinimumEigenOptimizer(qaoa_mes) 
+solution = qaoa.solve(graph.get_qp())
+
+
+"""
+for _ in range(num_graphs):
+    print("1 done")
+    size = random.choice(sizes)
+    graph = problem.get_graph(size, create_random=True)
+    
+    solver = Solver(graph, relaxed=False)
+    cplex_bitstring, cplex_objective = solver.solve()
+    
+    mystic_bitstring, mystic_objective = solve_with_mystic(graph)
+    
+    if mystic_objective > cplex_objective:
+        mystic_better_count += 1
+    
+    if is_almost_integer_solution(mystic_bitstring):
+        integer_solution_count += 1
+    
+    results.append((size, cplex_objective, mystic_objective))
+
+# Plot results
+sizes, cplex_results, mystic_results = zip(*results)
+plt.figure(figsize=(12, 6))
+plt.plot(sizes, cplex_results, 'o', label='CPLEX')
+plt.plot(sizes, mystic_results, 'x', label='Mystic')
+plt.xlabel('Graph Size')
+plt.ylabel('Objective Value')
+plt.legend()
+plt.title('Comparison of CPLEX and Mystic Solutions')
+plt.show()
+
+print(f'Mystic had a better solution {mystic_better_count} times out of {num_graphs}')
+print(f'Mystic solution was only integers {integer_solution_count} times out of {num_graphs}')
+
+
+sizes = range(10, 181, 10)
+runtimes = []
+plot_sizes = [number for number in sizes for i in range(10)]
+
+
+for size in sizes:
+    runtimes2 = []
+    for i in range(100):
+        graph = problem.get_graph(size, create_random=True)
+        solver = Solver(graph, relaxed=False)
+        
+        start_time = time.time()
+        solver.solve(verbose=False)
+        solution = solver.solve()
+        end_time = time.time()
+        end_time = time.time()
+        
+        runtime = end_time - start_time
+        runtimes2.append(runtime)
+        #print(f'Size: {size}, Runtime: {runtime:.6f} seconds')
+    runtimes.append(np.mean(runtimes2))
+
+# Plot results
+plt.figure(figsize=(12, 6))
+plt.plot(sizes, runtimes, 'o-', label='CPLEX Runtime')
+plt.xlabel('Graph Size')
+plt.ylabel('Runtime (seconds)')
+plt.legend()
+plt.title('CPLEX Solver Runtime vs Graph Size')
+plt.show()"""

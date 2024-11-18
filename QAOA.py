@@ -17,7 +17,7 @@ from solver import Solver
 
 class QAOArunner():
     """
-    A class with all the functionality needed to create quantum circuit and run using the QAOA alogrithm.
+    A class with all the functionality needed to create quantum circuit and run using the QAOA algorithm.
     inputs:
     Simulation: boolean, whether to run locally or on IBM cloud
     Graph: pygraph, the problem to solve

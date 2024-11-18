@@ -35,7 +35,6 @@ class MaxCutProblem():
                 edge_list = [edge+(float(rng.uniform(lb,ub,1)),) for edge in edge_list if (edge[1],edge[0]) not in edge_list] #remove dupes
             else: #kjører ikke fort, er ikke pent, men funker
                 edge_list = [edge+(default_weight,) for edge in edge_list if (edge[1],edge[0]) not in edge_list] #remove dupes
-            print(edge_list)
             graph.clear_edges()
             graph.add_edges_from(edge_list)
             

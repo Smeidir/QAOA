@@ -1,21 +1,13 @@
-import cplex
 from docplex.mp.model import Model
 from matplotlib import pyplot as plt
 from rustworkx import NoEdgeBetweenNodes
 import rustworkx as rx
-from rustworkx import is_connected
 from rustworkx.visualization import mpl_draw as draw_graph
 from load_data import load_graph_from_csv
 from mystic.solvers import fmin, fmin_powell
-from mystic.monitors import VerboseMonitor
-from qiskit_ibm_runtime import QiskitRuntimeService
-import params
-import random
 import numpy as np
 from MaxCutProblem import MaxCutProblem
-import time
 from qiskit_optimization.translators import from_docplex_mp, to_ising
-from qiskit_optimization import QuadraticProgram
 from qiskit_algorithms import QAOA, NumPyMinimumEigensolver
 from qiskit_algorithms.optimizers import COBYLA
 from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
@@ -23,12 +15,9 @@ from qiskit.primitives import Sampler, BackendSamplerV2, BackendSampler #samplre
 from qiskit_optimization.algorithms import (
     MinimumEigenOptimizer,
     RecursiveMinimumEigenOptimizer,
-    SolutionSample,
-    OptimizationResultStatus,
 )
 from qiskit.providers.fake_provider import GenericBackendV2
-from qiskit_optimization.algorithms import WarmStartQAOAOptimizer
-from qiskit_optimization.algorithms import MinimumEigenOptimizer, CplexOptimizer
+from qiskit_optimization.algorithms import MinimumEigenOptimizer
 from qiskit_optimization.converters import QuadraticProgramToQubo
 
 class Solver():
@@ -38,7 +27,7 @@ class Solver():
     TODO: Add support for max k-cut
     """
     
-    def __init__(self, graph, relaxed = False):
+    def __init__(self, graph, relaxed = False, restrictions=False):
 
         """
         Initializes the model with the given problem, but does not solve.
@@ -66,14 +55,11 @@ class Solver():
                     except NoEdgeBetweenNodes:
                         pass
         self.objective = objective
-        
-        # Add equality constraint: sum of variables equals half the number of nodes
-        #self.model.add_constraint(self.model.sum(self.variables) >= len(self.graph) // 2)
-        # Add constraint: sum of x0, x1, and x2 must be over 2
-        self.model.add_constraint(self.variables[0] + self.variables[1] + self.variables[2] == 1)
-        self.model.add_constraint(self.variables[3] + self.variables[4] + self.variables[5] == 1)
-        self.model.add_constraint(self.variables[6] + self.variables[7] + self.variables[8] == 1)
-        self.model.add_constraint(self.variables[9] + self.variables[10]  == 1)
+
+        if restrictions:
+            for i in range(2,len(graph), 3): #adds that every ordered tuple of three qubits most have 1 positive - for testing now, partitioning later
+                self.model.add_constraint(self.variables[i-2] + self.variables[i-1] + self.variables[i] == 1)
+
 
         self.model.objective=objective
         self.model.maximize(self.objective)
@@ -162,7 +148,6 @@ if __name__ == "__main__":
     solver = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'), True)
     solver.solve(True)
 
-
     backend = GenericBackendV2(num_qubits=11)
     qaoa_mes = QAOA(sampler=BackendSampler(backend=backend), optimizer=COBYLA(), initial_point=[0.0,0.0])
     exact_mes = NumPyMinimumEigensolver()
@@ -202,17 +187,6 @@ if __name__ == "__main__":
     rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact)
     rqaoa_result = rqaoa.solve(graph.get_qp())
     print("RQAOA:" ,rqaoa_result.prettyprint())
-
-"""
-
-pres = CplexOptimizer()
-pres.parameters.optimalitytarget = 2
-ws_qaoa = WarmStartQAOAOptimizer(
-    pre_solver=pres, relax_for_pre_solver=True, qaoa=qaoa_mes, epsilon=0.0
-)
-wsqaoa_result = ws_qaoa.solve(graph.get_qp())
-print("WSQAOA:" ,wsqaoa_result.prettyprint())"""
-
 """
 
 

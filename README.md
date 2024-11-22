@@ -19,3 +19,4 @@ Next time:
 - Do operators commute`? commute?
 - Find mixer operators which preserve hard constraints
 - Solve for circuits locally and run on cloud?
+- Is offset important when you trasnlate from qubo?

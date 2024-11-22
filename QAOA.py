@@ -2,6 +2,7 @@ import time
 from matplotlib import pyplot as plt
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.providers.fake_provider import GenericBackendV2
+from qiskit_ibm_runtime.fake_provider import FakeBrisbane
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit.circuit.library import QAOAAnsatz
 import params
@@ -16,7 +17,10 @@ from qiskit_optimization.translators import from_docplex_mp, to_ising
 import rustworkx as rx
 from qiskit_optimization.converters import QuadraticProgramToQubo
 from qiskit.quantum_info import Operator
-
+from qiskit_optimization.algorithms import MinimumEigenOptimizer
+from qiskit_optimization.algorithms import (
+    MinimumEigenOptimizer,
+    RecursiveMinimumEigenOptimizer)
 from solver import Solver
 from qiskit_ibm_runtime import QiskitRuntimeService
 
@@ -29,7 +33,15 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='normal', solver = None, warm_start=False, test_hamil = False):
+    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, warm_start=False, test_hamil = False, restrictions=False, k=2):
+        
+        if qaoa_variant not in params.supported_qaoa_variants:
+            raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
+        if param_initialization not in params.supported_param_inits:
+            raise ValueError(f'Non-supported param initializer. Your param: {param_initialization} not in supported parameters:{params.supported_param_inits}.')
+        if optimizer not in params.supported_optimizers:
+            raise ValueError(f'Non-supported param initializer. Your param: {optimizer} not in supported parameters:{params.supported_optimizers}.')
+        
         self.graph = graph
         self.simulation = simulation
         self.param_initialization = param_initialization
@@ -39,10 +51,11 @@ class QAOArunner():
         self.solver = solver
         self.warm_start =warm_start
         self.test_hamil = test_hamil
+        self.restrictions = restrictions
 
-
-        #TODO: calculate num_qubits. For now, it's just the amount of nodes
         self.num_qubits = len(self.graph.nodes())
+        if k != 2:
+            self.num_qubits = k*len(self.graph) #TODO: implement logic for max values of k
         
 
     def build_circuit(self):
@@ -51,7 +64,7 @@ class QAOArunner():
         Pauli lists are operation instructions for the quantum circuit, and are 
         strings with mostly I-s and some Z-s. 
         They represent Z-operations on some qubits and I-operations on others.
-        Cost hamiltonian is the way the cirucit understands costs (?)
+        Cost hamiltonian is the way the circuit understands costs (?)
         updates self.: backend, circuit, cost_hamiltonian
         """
         
@@ -64,23 +77,25 @@ class QAOArunner():
             pauli_list.append(("".join(paulis)[::-1], weight))
         
 
-        conv = QuadraticProgramToQubo(penalty =1000)
-        solver = Solver(self.graph, relaxed = False) #use solver not to solve, but to get the qubo formulation - must not be relaxd!
+        conv = QuadraticProgramToQubo()
+        solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions) #use solver not to solve, but to get the qubo formulation - must not be relaxd!
         cost_hamiltonian = to_ising(conv.convert(solver.get_qp()))
 
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         cost_hamiltonian = SparsePauliOp.from_list(pauli_list)
 
         #print('Should be: ', cost_hamiltonian)
-
+        self.build_backend()
         if self.test_hamil: 
-            cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples)
+            cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) #TODO: ensure these have the same coefficients
             #print('Is: ', cost_hamiltonian)
         print('Num qubits: ', cost_hamiltonian.num_qubits)
         qc = None
+
+
         if self.qaoa_variant =='normal':
             if self.warm_start:
-                solver = Solver(self.graph, relaxed = True)
+                solver = Solver(self.graph, relaxed = True, restrictions=self.restrictions)
                 solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
                 initial_state = QuantumCircuit(self.num_qubits)
                 thetas = 2*np.arcsin(np.sqrt(solution_values))
@@ -92,19 +107,19 @@ class QAOArunner():
                     mixer_state.ry(thetas[qubit],qubit) 
                     mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
                     mixer_state.ry(-thetas[qubit],qubit)
-                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth, initial_state=initial_state, mixer_operator=mixer_state)
+                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth, initial_state=initial_state, mixer_operator=mixer_state, flatten=True)
 
             else:
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
             
-            cost_operator = qc.cost_operator.to_operator()
+            #cost_operator = qc.cost_operator.to_operator()
             #print("Cost operator type: ", type(cost_operator))
-            mixer_operator = Operator(qc.mixer_operator)
+            #mixer_operator = Operator(qc.mixer_operator)#why does this work on not warm start but not on warm start?
             #print("Cost operator: ", cost_operator)
             #print("Mixer operator: ", mixer_operator)
 
 
-            commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
+            #commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
             #print("commutator: ", commutator)
 
             qc.measure_all()
@@ -114,9 +129,10 @@ class QAOArunner():
     
             qc = QuantumCircuit(self.num_qubits)
             for _ in range(self.num_qubits): 
-                qc.rz(np.pi/2, _) #not hadamards, but close. The same as qiskit uses
-                qc.sx(_)
-                qc.rz(np.pi/2, _)
+                qc.h(_)
+                #qc.rz(np.pi/2, _) #not hadamards, but close. The same as qiskit uses
+                #qc.sx(_)
+                #qc.rz(np.pi/2, _)
 
             for i in range(params.depth):
                 for idx, edge in enumerate(self.graph.edge_list()):
@@ -127,8 +143,14 @@ class QAOArunner():
                     qc.rx(2*multiangle_betas[i][idx], idx)
             qc.measure_all()
 
+        elif self.qaoa_variant =='recursive': #TODO: Fixx this
+            qaoa_mes = QAOA(sampler=BackendSampler(backend=backend), optimizer=COBYLA(), initial_point=[0.0,0.0])
+            qaoa = MinimumEigenOptimizer(qaoa_mes) 
+
+            rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact)
+
         self.build_backend()
-        pm = generate_preset_pass_manager(optimization_level=2,backend=self.backend)
+        pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
         candidate_circuit = pm.run(qc)
         self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
@@ -138,24 +160,19 @@ class QAOArunner():
  
     def build_backend(self):
 
-        if self.simulation: 
-            self.backend = GenericBackendV2(num_qubits=len(self.graph)) #TODO: make this generic for k-cut
+        if self.simulation:
+            self.backend = FakeBrisbane()
+            print("You are running on the local simulator: ", self.backend.name)
         else:
-
             QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
             service = QiskitRuntimeService(channel='ibm_quantum')
             self.backend = service.least_busy(min_num_qubits=127)
-            print(self.backend)
-            #raise NotImplementedError('Running on IBM not implemented yet. Set Simulation to True instead to run locally.')
+            print("You are running on the prestigious: ", self.backend)
         
     def draw_circuit(self):
         self.circuit.draw('mpl', fold=False, idle_wires=False)
 
     def get_init_params(self): #TODO: add support for multiangle
-        supported_params = ['gaussian','uniform','machine_learning'] #TODO: move into init
-
-        if self.param_initialization not in supported_params:
-            raise ValueError(f'Non-supported param initializer. Your param: {self.param_initialization} not in supported parameters:{supported_params}.')
 
         param_length = None #none so if its not changed its easier to see bugs - if it was 0 might be bugs furhter down the line
         if self.qaoa_variant == "normal":
@@ -175,7 +192,7 @@ class QAOArunner():
                 print(f'Init_params, for error checking: {init_params}')
                 return init_params
 
-            case 'machine_learning':
+            case 'machinelearning':
                 raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
 
 
@@ -223,7 +240,7 @@ class QAOArunner():
         #TODO: see if this can be optimized
         #transform observable defined on virtual qubits to an observable defined on all physical qubits
 
-        isa_hamiltonian = hamiltonian.apply_layout(ansatz.layout)
+        isa_hamiltonian = hamiltonian.apply_layout(ansatz.layout) #TODO: What does this actually do?
 
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
@@ -324,7 +341,7 @@ class QAOArunner():
         values = list(final_distribution_int.values())
 
         most_likely = keys[np.argmax(np.abs(values))]
-        most_likely_bitstring = to_bitstring(most_likely,len(self.graph))#TODO: change to amount of qubits
+        most_likely_bitstring = to_bitstring(most_likely,self.num_qubits)
         most_likely_bitstring.reverse()
 
         return most_likely_bitstring

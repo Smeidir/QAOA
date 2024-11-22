@@ -39,21 +39,9 @@ class MaxCutProblem():
             graph.add_edges_from(edge_list)
             
             return graph
-            graph = rx.PyGraph()
-            rng = np.random.default_rng(seed = 173)
-            graph.add_nodes_from(np.arange(0,graph_size,1))
-            edge_list= [(random.randint(0,graph_size-1),random.randint(0,graph_size-1),1) for _ in range(2*graph_size)]
-            
-            edge_list = [edge for edge in edge_list if (edge[1],edge[0],1.0) not in edge_list] #remove dupes
-            
-            graph.add_edges_from(edge_list)
+def read_graph6(self, graph6_str):
 
-            while not is_connected(graph):
-                #naive function iteratively adds edges until the graph is connected. can be immensely improved but runs fast enough
-                edge = (random.randint(0,graph_size-1),random.randint(0,graph_size-1),1)
-                mirror_edge = (edge[1],edge[0],1.0)
+    graph = rx.PyGraph.from_graph6(graph6_str)
+    draw_graph(graph)
 
-                if edge not in graph.edge_list() and mirror_edge not in graph.edge_list(): #adding, but avoiding dupes
-                    graph.add_edges_from([(random.randint(0,graph_size-1),random.randint(0,graph_size-1),1) for _ in range(1)])
-
-            return graph
+read_graph6

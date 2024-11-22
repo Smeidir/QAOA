@@ -1,0 +1,137 @@
+Converting problems can be difficult. Here is a generic example with an equality constraint, determining the size of the partitions:
+
+Problem name: MaxCut
+
+Maximize
+  -2*x_0*x_1 - 2*x_0*x_2 - 2*x_0*x_4 - 2*x_0*x_7 - 2*x_1*x_4 - 2*x_1*x_9
+  - 2*x_2*x_3 - 2*x_2*x_4 - 2*x_2*x_6 - 2*x_3*x_5 - 2*x_3*x_6 - 2*x_5*x_6
+  - 2*x_7*x_8 - 2*x_7*x_9 - 2*x_8*x_10 - 2*x_9*x_10 + 4*x_0 + 3*x_1 + 2*x_10
+  + 4*x_2 + 3*x_3 + 3*x_4 + 2*x_5 + 3*x_6 + 3*x_7 + 2*x_8 + 3*x_9
+
+Subject to
+  Linear constraints (1)
+    x_0 + x_1 + x_10 + x_2 + x_3 + x_4 + x_5 + x_6 + x_7 + x_8 + x_9 == 5  'c0'
+
+  Binary variables (11)
+    x_0 x_1 x_2 x_3 x_4 x_5 x_6 x_7 x_8 x_9 x_10
+
+Qubo version: 
+
+QUBO: minimize 65*x_0^2 + 132*x_0*x_1 + 130*x_0*x_10 + 132*x_0*x_2 + 130*x_0*x_3 + 132*x_0*x_4 + 130*x_0*x_5 + 130*x_0*x_6 + 132*x_0*x_7 + 130*x_0*x_8 + 130*x_0*x_9 + 65*x_1^2 + 
+130*x_1*x_10 + 130*x_1*x_2 + 130*x_1*x_3 + 132*x_1*x_4 + 130*x_1*x_5 + 130*x_1*x_6 + 130*x_1*x_7 + 130*x_1*x_8 + 132*x_1*x_9 + 65*x_10^2 + 130*x_2*x_10 + 65*x_2^2 + 132*x_2*x_3 + 
+132*x_2*x_4 + 130*x_2*x_5 + 132*x_2*x_6 + 130*x_2*x_7 + 130*x_2*x_8 + 130*x_2*x_9 + 130*x_3*x_10 + 65*x_3^2 + 130*x_3*x_4 + 132*x_3*x_5 + 132*x_3*x_6 + 130*x_3*x_7 + 130*x_3*x_8 + 
+130*x_3*x_9 + 130*x_4*x_10 + 65*x_4^2 + 130*x_4*x_5 + 130*x_4*x_6 + 130*x_4*x_7 + 130*x_4*x_8 + 130*x_4*x_9 + 130*x_5*x_10 + 65*x_5^2 + 132*x_5*x_6 + 130*x_5*x_7 + 130*x_5*x_8 + 
+130*x_5*x_9 + 130*x_6*x_10 + 65*x_6^2 + 130*x_6*x_7 + 130*x_6*x_8 + 130*x_6*x_9 + 130*x_7*x_10 + 65*x_7^2 + 132*x_7*x_8 + 132*x_7*x_9 + 132*x_8*x_10 + 65*x_8^2 + 130*x_8*x_9 + 
+132*x_9*x_10 + 65*x_9^2 - 654*x_0 - 653*x_1 - 652*x_10 - 654*x_2 - 653*x_3 - 653*x_4 - 652*x_5 - 653*x_6 - 653*x_7 - 652*x_8 - 653*x_9 + 1625 (11 variables, 0 constraints, 'MaxCut')
+
+ising: (SparsePauliOp(['IIIIIIIIIZI', 'IIIIIIIIIIZ', 'IIIIIIIIZII', 'IIIIIIIZIII', 'IIIIIIZIIII', 'IIIIIZIIIII', 'IIIIZIIIIII', 'IIIZIIIIIII', 'IIZIIIIIIII', 'IZIIIIIIIII', 'ZIIIIIIIIII', 'IIIIIIIIIZZ', 'IIIIIIIIZIZ', 'IIIIIIIZIIZ', 'IIIIIIZIIIZ', 'IIIIIZIIIIZ', 'IIIIZIIIIIZ', 'IIIZIIIIIIZ', 'IIZIIIIIIIZ', 'IZIIIIIIIIZ', 'ZIIIIIIIIIZ', 'IIIIIIIIZZI', 'IIIIIIIZIZI', 'IIIIIIZIIZI', 'IIIIIZIIIZI', 'IIIIZIIIIZI', 'IIIZIIIIIZI', 'IIZIIIIIIZI', 'IZIIIIIIIZI', 'ZIIIIIIIIZI', 'IIIIIIIZZII', 'IIIIIIZIZII', 'IIIIIZIIZII', 'IIIIZIIIZII', 'IIIZIIIIZII', 'IIZIIIIIZII', 'IZIIIIIIZII', 'ZIIIIIIIZII', 'IIIIIIZZIII', 'IIIIIZIZIII', 'IIIIZIIZIII', 'IIIZIIIZIII', 'IIZIIIIZIII', 'IZIIIIIZIII', 'ZIIIIIIZIII', 'IIIIIZZIIII', 'IIIIZIZIIII', 'IIIZIIZIIII', 'IIZIIIZIIII', 'IZIIIIZIIII', 'ZIIIIIZIIII', 'IIIIZZIIIII', 'IIIZIZIIIII', 'IIZIIZIIIII', 'IZIIIZIIIII', 'ZIIIIZIIIII', 'IIIZZIIIIII', 'IIZIZIIIIII', 'IZIIZIIIIII', 'ZIIIZIIIIII', 'IIZZIIIIIII', 'IZIZIIIIIII', 'ZIIZIIIIIII', 'IZZIIIIIIII', 'ZIZIIIIIIII', 'ZZIIIIIIIII'],
+              coeffs=[-32.5+0.j, -32.5+0.j, -32.5+0.j, -32.5+0.j, -32.5+0.j, -32.5+0.j,
+ -32.5+0.j, -32.5+0.j, -32.5+0.j, -32.5+0.j, -32.5+0.j,  33. +0.j,
+  33. +0.j,  32.5+0.j,  33. +0.j,  32.5+0.j,  32.5+0.j,  33. +0.j,
+  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  33. +0.j,
+  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  33. +0.j,  32.5+0.j,
+  33. +0.j,  33. +0.j,  32.5+0.j,  33. +0.j,  32.5+0.j,  32.5+0.j,
+  32.5+0.j,  32.5+0.j,  32.5+0.j,  33. +0.j,  33. +0.j,  32.5+0.j,
+  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,
+  32.5+0.j,  32.5+0.j,  32.5+0.j,  33. +0.j,  32.5+0.j,  32.5+0.j,
+  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,  32.5+0.j,
+  33. +0.j,  33. +0.j,  32.5+0.j,  32.5+0.j,  33. +0.j,  33. +0.j]), np.float64(187.0))
+
+Here is the same problem, with the equality described as a ineguality instead: 
+
+Problem name: MaxCut
+
+Maximize
+  -2*x_0*x_1 - 2*x_0*x_2 - 2*x_0*x_4 - 2*x_0*x_7 - 2*x_1*x_4 - 2*x_1*x_9
+  - 2*x_2*x_3 - 2*x_2*x_4 - 2*x_2*x_6 - 2*x_3*x_5 - 2*x_3*x_6 - 2*x_5*x_6
+  - 2*x_7*x_8 - 2*x_7*x_9 - 2*x_8*x_10 - 2*x_9*x_10 + 4*x_0 + 3*x_1 + 2*x_10
+  + 4*x_2 + 3*x_3 + 3*x_4 + 2*x_5 + 3*x_6 + 3*x_7 + 2*x_8 + 3*x_9
+
+Subject to
+  Linear constraints (1)
+    x_0 + x_1 + x_10 + x_2 + x_3 + x_4 + x_5 + x_6 + x_7 + x_8 + x_9 >= 5  'c0'
+
+  Binary variables (11)
+    x_0 x_1 x_2 x_3 x_4 x_5 x_6 x_7 x_8 x_9 x_10
+
+QUBO: minimize 65*c0@int_slack@0^2 + 260*c0@int_slack@0*c0@int_slack@1 + 390*c0@int_slack@0*c0@int_slack@2 + 260*c0@int_slack@1^2 + 780*c0@int_slack@1*c0@int_slack@2 + 
+585*c0@int_slack@2^2 - 130*x_0*c0@int_slack@0 - 260*x_0*c0@int_slack@1 - 390*x_0*c0@int_slack@2 + 65*x_0^2 + 132*x_0*x_1 + 130*x_0*x_10 + 132*x_0*x_2 + 130*x_0*x_3 + 132*x_0*x_4 + 
+130*x_0*x_5 + 130*x_0*x_6 + 132*x_0*x_7 + 130*x_0*x_8 + 130*x_0*x_9 - 130*x_1*c0@int_slack@0 - 260*x_1*c0@int_slack@1 - 390*x_1*c0@int_slack@2 + 65*x_1^2 + 130*x_1*x_10 + 130*x_1*x_2 + 
+130*x_1*x_3 + 132*x_1*x_4 + 130*x_1*x_5 + 130*x_1*x_6 + 130*x_1*x_7 + 130*x_1*x_8 + 132*x_1*x_9 - 130*x_10*c0@int_slack@0 - 260*x_10*c0@int_slack@1 - 390*x_10*c0@int_slack@2 + 65*x_10^2 
+- 130*x_2*c0@int_slack@0 - 260*x_2*c0@int_slack@1 - 390*x_2*c0@int_slack@2 + 130*x_2*x_10 + 65*x_2^2 + 132*x_2*x_3 + 132*x_2*x_4 + 130*x_2*x_5 + 132*x_2*x_6 + 130*x_2*x_7 + 130*x_2*x_8 
++ 130*x_2*x_9 - 130*x_3*c0@int_slack@0 - 260*x_3*c0@int_slack@1 - 390*x_3*c0@int_slack@2 + 130*x_3*x_10 + 65*x_3^2 + 130*x_3*x_4 + 132*x_3*x_5 + 132*x_3*x_6 + 130*x_3*x_7 + 130*x_3*x_8 
++ 130*x_3*x_9 - 130*x_4*c0@int_slack@0 - 260*x_4*c0@int_slack@1 - 390*x_4*c0@int_slack@2 + 130*x_4*x_10 + 65*x_4^2 + 130*x_4*x_5 + 130*x_4*x_6 + 130*x_4*x_7 + 130*x_4*x_8 + 130*x_4*x_9 
+- 130*x_5*c0@int_slack@0 - 260*x_5*c0@int_slack@1 - 390*x_5*c0@int_slack@2 + 130*x_5*x_10 + 65*x_5^2 + 132*x_5*x_6 + 130*x_5*x_7 + 130*x_5*x_8 + 130*x_5*x_9 - 130*x_6*c0@int_slack@0 - 
+260*x_6*c0@int_slack@1 - 390*x_6*c0@int_slack@2 + 130*x_6*x_10 + 65*x_6^2 + 130*x_6*x_7 + 130*x_6*x_8 + 130*x_6*x_9 - 130*x_7*c0@int_slack@0 - 260*x_7*c0@int_slack@1 - 
+390*x_7*c0@int_slack@2 + 130*x_7*x_10 + 65*x_7^2 + 132*x_7*x_8 + 132*x_7*x_9 - 130*x_8*c0@int_slack@0 - 260*x_8*c0@int_slack@1 - 390*x_8*c0@int_slack@2 + 132*x_8*x_10 + 65*x_8^2 + 
+130*x_8*x_9 - 130*x_9*c0@int_slack@0 - 260*x_9*c0@int_slack@1 - 390*x_9*c0@int_slack@2 + 132*x_9*x_10 + 65*x_9^2 + 650*c0@int_slack@0 + 1300*c0@int_slack@1 + 1950*c0@int_slack@2 - 
+654*x_0 - 653*x_1 - 652*x_10 - 654*x_2 - 653*x_3 - 653*x_4 - 652*x_5 - 653*x_6 - 653*x_7 - 652*x_8 - 653*x_9 + 1625 (14 variables, 0 constraints, 'MaxCut')
+
+ising: (SparsePauliOp(['IIIIIIIIIIIIZI', 'IIIIIIIIIIIIIZ', 'IIIIIIIIIIIZII', 'IIIIIIIIIIZIII', 'IIIIIIIIIZIIII', 'IIIIIIIIZIIIII', 'IIIIIIIZIIIIII', 'IIIIIIZIIIIIII', 'IIIIIZIIIIIIII', 'IIIIZIIIIIIIII', 'IIIZIIIIIIIIII', 'IIZIIIIIIIIIII', 'IZIIIIIIIIIIII', 'ZIIIIIIIIIIIII', 'IIIIIIIIIIIIZZ', 'IIIIIIIIIIIZIZ', 'IIIIIIIIIIZIIZ', 'IIIIIIIIIZIIIZ', 'IIIIIIIIZIIIIZ', 'IIIIIIIZIIIIIZ', 'IIIIIIZIIIIIIZ', 'IIIIIZIIIIIIIZ', 'IIIIZIIIIIIIIZ', 'IIIZIIIIIIIIIZ', 'IIZIIIIIIIIIIZ', 'IZIIIIIIIIIIIZ', 'ZIIIIIIIIIIIIZ', 'IIIIIIIIIIIZZI', 'IIIIIIIIIIZIZI', 'IIIIIIIIIZIIZI', 'IIIIIIIIZIIIZI', 'IIIIIIIZIIIIZI', 'IIIIIIZIIIIIZI', 'IIIIIZIIIIIIZI', 'IIIIZIIIIIIIZI', 'IIIZIIIIIIIIZI', 'IIZIIIIIIIIIZI', 'IZIIIIIIIIIIZI', 'ZIIIIIIIIIIIZI', 'IIIIIIIIIIZZII', 'IIIIIIIIIZIZII', 'IIIIIIIIZIIZII', 'IIIIIIIZIIIZII', 'IIIIIIZIIIIZII', 'IIIIIZIIIIIZII', 'IIIIZIIIIIIZII', 'IIIZIIIIIIIZII', 'IIZIIIIIIIIZII', 'IZIIIIIIIIIZII', 'ZIIIIIIIIIIZII', 'IIIIIIIIIZZIII', 'IIIIIIIIZIZIII', 'IIIIIIIZIIZIII', 'IIIIIIZIIIZIII', 'IIIIIZIIIIZIII', 'IIIIZIIIIIZIII', 'IIIZIIIIIIZIII', 'IIZIIIIIIIZIII', 'IZIIIIIIIIZIII', 'ZIIIIIIIIIZIII', 'IIIIIIIIZZIIII', 'IIIIIIIZIZIIII', 'IIIIIIZIIZIIII', 'IIIIIZIIIZIIII', 'IIIIZIIIIZIIII', 'IIIZIIIIIZIIII', 'IIZIIIIIIZIIII', 'IZIIIIIIIZIIII', 'ZIIIIIIIIZIIII', 'IIIIIIIZZIIIII', 'IIIIIIZIZIIIII', 'IIIIIZIIZIIIII', 'IIIIZIIIZIIIII', 'IIIZIIIIZIIIII', 'IIZIIIIIZIIIII', 'IZIIIIIIZIIIII', 'ZIIIIIIIZIIIII', 'IIIIIIZZIIIIII', 'IIIIIZIZIIIIII', 'IIIIZIIZIIIIII', 'IIIZIIIZIIIIII', 'IIZIIIIZIIIIII', 'IZIIIIIZIIIIII', 'ZIIIIIIZIIIIII', 'IIIIIZZIIIIIII', 'IIIIZIZIIIIIII', 'IIIZIIZIIIIIII', 'IIZIIIZIIIIIII', 'IZIIIIZIIIIIII', 'ZIIIIIZIIIIIII', 'IIIIZZIIIIIIII', 'IIIZIZIIIIIIII', 'IIZIIZIIIIIIII', 'IZIIIZIIIIIIII', 'ZIIIIZIIIIIIII', 'IIIZZIIIIIIIII', 'IIZIZIIIIIIIII', 'IZIIZIIIIIIIII', 'ZIIIZIIIIIIIII', 'IIZZIIIIIIIIII', 'IZIZIIIIIIIIII', 'ZIIZIIIIIIIIII', 'IZZIIIIIIIIIII', 'ZIZIIIIIIIIIII', 'ZZIIIIIIIIIIII'],
+              coeffs=[ 162.5+0.j,  162.5+0.j,  162.5+0.j,  162.5+0.j,  162.5+0.j,  162.5+0.j,
+  162.5+0.j,  162.5+0.j,  162.5+0.j,  162.5+0.j,  162.5+0.j, -162.5+0.j,
+ -325. +0.j, -487.5+0.j,   33. +0.j,   33. +0.j,   32.5+0.j,   33. +0.j,
+   32.5+0.j,   32.5+0.j,   33. +0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,
+  -32.5+0.j,  -65. +0.j,  -97.5+0.j,   32.5+0.j,   32.5+0.j,   33. +0.j,
+   32.5+0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,   33. +0.j,   32.5+0.j,
+  -32.5+0.j,  -65. +0.j,  -97.5+0.j,   33. +0.j,   33. +0.j,   32.5+0.j,
+   33. +0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,  -32.5+0.j,
+  -65. +0.j,  -97.5+0.j,   32.5+0.j,   33. +0.j,   33. +0.j,   32.5+0.j,
+   32.5+0.j,   32.5+0.j,   32.5+0.j,  -32.5+0.j,  -65. +0.j,  -97.5+0.j,
+   32.5+0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,   32.5+0.j,
+  -32.5+0.j,  -65. +0.j,  -97.5+0.j,   33. +0.j,   32.5+0.j,   32.5+0.j,
+   32.5+0.j,   32.5+0.j,  -32.5+0.j,  -65. +0.j,  -97.5+0.j,   32.5+0.j,
+   32.5+0.j,   32.5+0.j,   32.5+0.j,  -32.5+0.j,  -65. +0.j,  -97.5+0.j,
+   33. +0.j,   33. +0.j,   32.5+0.j,  -32.5+0.j,  -65. +0.j,  -97.5+0.j,
+   32.5+0.j,   33. +0.j,  -32.5+0.j,  -65. +0.j,  -97.5+0.j,   33. +0.j,
+  -32.5+0.j,  -65. +0.j,  -97.5+0.j,  -32.5+0.j,  -65. +0.j,  -97.5+0.j,
+   65. +0.j,   97.5+0.j,  195. +0.j]), np.float64(804.5))
+
+
+Inequality is a bit more expensive, but does work. Ideally we want restrictions with few variables in them to prevent polynomial explosion i thought, but that seems to 
+not be the case. here is an example with fewer:
+This gives a shorter objective function, but more variables as you need a slack for each restriction.
+This did not solve for a minute, though, compared to CPLEX which solves this in the blink of an eye. 
+This is a problem as these kinds of restrictions are ideal for the k-cut problem.
+
+Maximize
+  -2*x_0*x_1 - 2*x_0*x_2 - 2*x_0*x_4 - 2*x_0*x_7 - 2*x_1*x_4 - 2*x_1*x_9
+  - 2*x_2*x_3 - 2*x_2*x_4 - 2*x_2*x_6 - 2*x_3*x_5 - 2*x_3*x_6 - 2*x_5*x_6
+  - 2*x_7*x_8 - 2*x_7*x_9 - 2*x_8*x_10 - 2*x_9*x_10 + 4*x_0 + 3*x_1 + 2*x_10
+  + 4*x_2 + 3*x_3 + 3*x_4 + 2*x_5 + 3*x_6 + 3*x_7 + 2*x_8 + 3*x_9
+
+Subject to
+  Linear constraints (4)
+    x_0 + x_1 + x_2 >= 1  'c0'
+    x_3 + x_4 + x_5 >= 1  'c1'
+    x_6 + x_7 + x_8 >= 1  'c2'
+    x_10 + x_9 >= 1  'c3'
+
+  Binary variables (11)
+    x_0 x_1 x_2 x_3 x_4 x_5 x_6 x_7 x_8 x_9 x_10
+
+QUBO: minimize 260*c0@int_slack@0^2 + 520*c0@int_slack@0*c0@int_slack@1 + 260*c0@int_slack@1^2 + 260*c1@int_slack@0^2 + 520*c1@int_slack@0*c1@int_slack@1 + 260*c1@int_slack@1^2 + 
+260*c2@int_slack@0^2 + 520*c2@int_slack@0*c2@int_slack@1 + 260*c2@int_slack@1^2 - 520*x_0*c0@int_slack@0 - 520*x_0*c0@int_slack@1 + 260*x_0^2 + 522*x_0*x_1 + 522*x_0*x_2 +
+ 2*x_0*x_4 + 2*x_0*x_7 - 520*x_1*c0@int_slack@0 - 520*x_1*c0@int_slack@1 + 260*x_1^2 + 520*x_1*x_2 + 2*x_1*x_4 + 2*x_1*x_9 - 520*x_2*c0@int_slack@0 - 520*x_2*c0@int_slack@1 + 
+ 260*x_2^2 + 2*x_2*x_3 + 2*x_2*x_4 + 2*x_2*x_6 - 520*x_3*c1@int_slack@0 - 520*x_3*c1@int_slack@1 + 260*x_3^2 + 520*x_3*x_4 + 522*x_3*x_5 + 2*x_3*x_6 - 520*x_4*c1@int_slack@0 - 
+ 520*x_4*c1@int_slack@1 + 260*x_4^2 + 520*x_4*x_5 - 520*x_5*c1@int_slack@0 - 520*x_5*c1@int_slack@1 + 260*x_5^2 + 2*x_5*x_6 - 520*x_6*c2@int_slack@0 - 520*x_6*c2@int_slack@1 +
+  260*x_6^2 + 520*x_6*x_7 + 520*x_6*x_8 - 520*x_7*c2@int_slack@0 - 520*x_7*c2@int_slack@1 + 260*x_7^2 + 522*x_7*x_8 + 2*x_7*x_9 - 520*x_8*c2@int_slack@0 - 520*x_8*c2@int_slack@1 + 
+  2*x_8*x_10 + 260*x_8^2 + 67*x_9*x_10 + 520*c0@int_slack@0 + 520*c0@int_slack@1 + 520*c1@int_slack@0 + 520*c1@int_slack@1 + 520*c2@int_slack@0 + 520*c2@int_slack@1 - 524*x_0 - 
+  523*x_1 - 67*x_10 - 524*x_2 - 523*x_3 - 523*x_4 - 522*x_5 - 523*x_6 - 523*x_7 - 522*x_8 - 68*x_9 + 845 (17 variables, 0 constraints, 'MaxCut')
+
+ising: (SparsePauliOp(['IIIIIIIIIIIIIIIZI', 'IIIIIIIIIIIIIIIIZ', 'IIIIIIIIIIIIIIZII', 'IIIIIIIIIIIIIZIII', 'IIIIIIIIIIIIZIIII', 'IIIIIIIIIIIZIIIII', 'IIIIIIIIIIZIIIIII', 'IIIIIIIIIZIIIIIII', 'IIIIIIIIZIIIIIIII', 'IIIIIIIZIIIIIIIII', 'IIIIIIZIIIIIIIIII', 'IIIIIZIIIIIIIIIII', 'IIIIZIIIIIIIIIIII', 'IIIZIIIIIIIIIIIII', 'IIZIIIIIIIIIIIIII', 'IZIIIIIIIIIIIIIII', 'ZIIIIIIIIIIIIIIII', 'IIIIIIIIIIIIIIIZZ', 'IIIIIIIIIIIIIIZIZ', 'IIIIIIIIIIIIZIIIZ', 'IIIIIIIIIZIIIIIIZ', 'IIIIIZIIIIIIIIIIZ', 'IIIIZIIIIIIIIIIIZ', 'IIIIIIIIIIIIIIZZI', 'IIIIIIIIIIIIZIIZI', 'IIIIIIIZIIIIIIIZI', 'IIIIIZIIIIIIIIIZI', 'IIIIZIIIIIIIIIIZI', 'IIIIIIIIIIIIIZZII', 'IIIIIIIIIIIIZIZII', 'IIIIIIIIIIZIIIZII', 'IIIIIZIIIIIIIIZII', 'IIIIZIIIIIIIIIZII', 'IIIIIIIIIIIIZZIII', 'IIIIIIIIIIIZIZIII', 'IIIIIIIIIIZIIZIII', 'IIIZIIIIIIIIIZIII', 'IIZIIIIIIIIIIZIII', 'IIIIIIIIIIIZZIIII', 'IIIZIIIIIIIIZIIII', 'IIZIIIIIIIIIZIIII', 'IIIIIIIIIIZZIIIII', 'IIIZIIIIIIIZIIIII', 'IIZIIIIIIIIZIIIII', 'IIIIIIIIIZZIIIIII', 'IIIIIIIIZIZIIIIII', 'IZIIIIIIIIZIIIIII', 'ZIIIIIIIIIZIIIIII', 'IIIIIIIIZZIIIIIII', 'IIIIIIIZIZIIIIIII', 'IZIIIIIIIZIIIIIII', 'ZIIIIIIIIZIIIIIII', 'IIIIIIZIZIIIIIIII', 'IZIIIIIIZIIIIIIII', 'ZIIIIIIIZIIIIIIII', 'IIIIIIZZIIIIIIIII', 'IIIIZZIIIIIIIIIII', 'IIZZIIIIIIIIIIIII', 'ZZIIIIIIIIIIIIIII'],
+              coeffs=[ 130.  +0.j,  130.  +0.j,  130.  +0.j,  130.  +0.j,  130.  +0.j,
+  130.  +0.j,  130.  +0.j,  130.  +0.j,  130.  +0.j,   16.25+0.j,
+   16.25+0.j, -130.  +0.j, -130.  +0.j, -130.  +0.j, -130.  +0.j,
+ -130.  +0.j, -130.  +0.j,  130.5 +0.j,  130.5 +0.j,    0.5 +0.j,
+    0.5 +0.j, -130.  +0.j, -130.  +0.j,  130.  +0.j,    0.5 +0.j,
+    0.5 +0.j, -130.  +0.j, -130.  +0.j,    0.5 +0.j,    0.5 +0.j,
+    0.5 +0.j, -130.  +0.j, -130.  +0.j,  130.  +0.j,  130.5 +0.j,
+    0.5 +0.j, -130.  +0.j, -130.  +0.j,  130.  +0.j, -130.  +0.j,
+ -130.  +0.j,    0.5 +0.j, -130.  +0.j, -130.  +0.j,  130.  +0.j,
+  130.  +0.j, -130.  +0.j, -130.  +0.j,  130.5 +0.j,    0.5 +0.j,
+ -130.  +0.j, -130.  +0.j,    0.5 +0.j, -130.  +0.j, -130.  +0.j,
+   16.75+0.j,  130.  +0.j,  130.  +0.j,  130.  +0.j]), np.float64(1178.25))
+
+
+I've encountered a problem when im adding many constraints which is that the size of the matrix exlodes. For a regular optimization program described, i get error:

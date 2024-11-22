@@ -1,3 +1,4 @@
+import time
 from matplotlib import pyplot as plt
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.providers.fake_provider import GenericBackendV2
@@ -11,9 +12,13 @@ from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import HGate
 from qiskit.circuit import Parameter
+from qiskit_optimization.translators import from_docplex_mp, to_ising
 import rustworkx as rx
+from qiskit_optimization.converters import QuadraticProgramToQubo
+
 
 from solver import Solver
+from qiskit_ibm_runtime import QiskitRuntimeService
 
 class QAOArunner():
     """
@@ -24,7 +29,7 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='normal', solver = None):
+    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='normal', solver = None, warm_start=False, test_hamil = False):
         self.graph = graph
         self.simulation = simulation
         self.param_initialization = param_initialization
@@ -32,6 +37,8 @@ class QAOArunner():
         self.optimizer = optimizer
         self.solution = None
         self.solver = solver
+        self.warm_start =warm_start
+        self.test_hamil = test_hamil
 
 
         #TODO: calculate num_qubits. For now, it's just the amount of nodes
@@ -55,27 +62,42 @@ class QAOArunner():
 
             weight = self.graph.get_edge_data(edge[0],edge[1])
             pauli_list.append(("".join(paulis)[::-1], weight))
+        
+
+        conv = QuadraticProgramToQubo()
+        solver = Solver(self.graph, relaxed = False) #use solver not to solve, but to get the qubo formulation - must not be relaxd!
+        cost_hamiltonian = to_ising(conv.convert(solver.get_qp()))
+
+        cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         cost_hamiltonian = SparsePauliOp.from_list(pauli_list)
 
+        print('Should be: ', cost_hamiltonian)
+
+        if self.test_hamil: 
+            cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples)
+            print('Is: ', cost_hamiltonian)
+        print('Num qubits: ', cost_hamiltonian.num_qubits)
+        qc = None
         if self.qaoa_variant =='normal':
-            if self.param_initialization == 'warm_start':
+            if self.warm_start:
                 solver = Solver(self.graph, relaxed = True)
                 solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
                 initial_state = QuantumCircuit(self.num_qubits)
                 thetas = 2*np.arcsin(np.sqrt(solution_values))
-                for qubit in range(self.num_qubits): #must check if they are the correct indices - qubits on IBM might be opposite ordering
+                for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     initial_state.ry(thetas[qubit],qubit)
                 mixer_state = QuantumCircuit(self.num_qubits)
+                mixer_param = Parameter('β')
                 for qubit in range(self.num_qubits):
                     mixer_state.ry(thetas[qubit],qubit) 
-                    mixer_state.rz('β', qubit)#TODO: teste denne, at det blir flere β-parametere
+                    mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
                     mixer_state.ry(-thetas[qubit],qubit)
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth, initial_state=initial_state, mixer_operator=mixer_state)
 
             else:
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
-                qc.measure_all()
-        else: #TODO: implement check for multiangle
+            qc.measure_all()
+        elif self.qaoa_variant =='multiangle': 
             multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(params.depth)]
             multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(params.depth)]
     
@@ -95,18 +117,31 @@ class QAOArunner():
             qc.measure_all()
 
         self.build_backend()
-        pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
+        pm = generate_preset_pass_manager(optimization_level=2,backend=self.backend)
         candidate_circuit = pm.run(qc)
         self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
-        
+
+        cost_operator = candidate_circuit.cost_operator
+        mixer_operator = candidate_circuit.mixer_operator
+
+
+        commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
+
+        print("commutator: ", commutator)
+
  
     def build_backend(self):
 
         if self.simulation: 
             self.backend = GenericBackendV2(num_qubits=len(self.graph)) #TODO: make this generic for k-cut
         else:
-            raise NotImplementedError('Running on IBM not implemented yet. Set Simulation to True instead to run locally.')
+
+            QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
+            service = QiskitRuntimeService(channel='ibm_quantum')
+            self.backend = service.least_busy(min_num_qubits=127)
+            print(self.backend)
+            #raise NotImplementedError('Running on IBM not implemented yet. Set Simulation to True instead to run locally.')
         
     def draw_circuit(self):
         self.circuit.draw('mpl', fold=False, idle_wires=False)
@@ -144,18 +179,27 @@ class QAOArunner():
         self.objective_func_vals = []
         init_params = self.get_init_params()
 
-
+        start_time = time.time()
         with Session(backend = self.backend) as session:
                 estimator = Estimator(mode=session)
                 estimator.options.default_shots = 1000
-    
+                if not self.simulation:
+                        # Set simple error suppression/mitigation options
+                        estimator.options.dynamical_decoupling.enable = True
+                        estimator.options.dynamical_decoupling.sequence_type = "XY4"
+                        estimator.options.twirling.enable_gates = True
+                        estimator.options.twirling.num_randomizations = "auto"
+                start_time = time.time()
                 result = minimize(
                 self.cost_func_estimator, 
                 init_params,
                 args= (self.circuit, self.cost_hamiltonian, estimator),
                 method = self.optimizer,
                 tol = 1e-2
-            )
+                )
+                end_time = time.time()
+        elapsed_time = end_time-start_time
+        print('Elapsed time:',elapsed_time)        
         print(result)
         self.result = result
         self.circuit = self.circuit.assign_parameters(self.result.x)
@@ -215,7 +259,14 @@ class QAOArunner():
 
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=10000
+        sampler.options.default_shots=1000
+
+        if not self.simulation:
+                # Set simple error suppression/mitigation options
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
 
         job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()
@@ -243,7 +294,14 @@ class QAOArunner():
         
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=10000
+        sampler.options.default_shots=1000
+
+        if not self.simulation:
+        # Set simple error suppression/mitigation options
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
 
         job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()

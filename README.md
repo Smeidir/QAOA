@@ -15,3 +15,7 @@ Next time:
 - fully connectedness and connectedness of graphs- for report
 
 - ensure eigensolver uses qaoa
+- - Chcek if paper is correct - https://www.youtube.com/watch?v=2OsEYt5BGGY
+- finalize everything for max cut to "save" 
+- Check if i can run on IBM - compare classical to quantum
+- ensure eigensolver uses qaoa

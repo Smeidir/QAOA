@@ -11,11 +11,11 @@ Next time:
 - QUBO 2 ising, (for the quantum) and ibm quadratic program with restrictions for cplex¨
 - Feel for classical vs quantum -> run classic optimizer and scale WITH CONSTRAINTS
 -> Dont do random graphs, do specific graphs (see the genetic algorithm paper) //or other
-- Use warm start from qiskit solver
 - fully connectedness and connectedness of graphs- for report
 
-- ensure eigensolver uses qaoa
-- - Chcek if paper is correct - https://www.youtube.com/watch?v=2OsEYt5BGGY
 - finalize everything for max cut to "save" 
-- Check if i can run on IBM - compare classical to quantum
+- Is it feasible to run ideal circuits on IBM but not train on it?
 - ensure eigensolver uses qaoa
+- Do operators commute`? commute?
+- Find mixer operators which preserve hard constraints
+- Solve for circuits locally and run on cloud?

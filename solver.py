@@ -8,6 +8,8 @@ from rustworkx.visualization import mpl_draw as draw_graph
 from load_data import load_graph_from_csv
 from mystic.solvers import fmin, fmin_powell
 from mystic.monitors import VerboseMonitor
+from qiskit_ibm_runtime import QiskitRuntimeService
+import params
 import random
 import numpy as np
 from MaxCutProblem import MaxCutProblem
@@ -17,7 +19,7 @@ from qiskit_optimization import QuadraticProgram
 from qiskit_algorithms import QAOA, NumPyMinimumEigensolver
 from qiskit_algorithms.optimizers import COBYLA
 from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
-from qiskit.primitives import Sampler #samplre is deprecated, but need it to run. Why?
+from qiskit.primitives import Sampler, BackendSamplerV2, BackendSampler #samplre is deprecated, but need it to run. Why?
 from qiskit_optimization.algorithms import (
     MinimumEigenOptimizer,
     RecursiveMinimumEigenOptimizer,
@@ -68,10 +70,10 @@ class Solver():
         # Add equality constraint: sum of variables equals half the number of nodes
         #self.model.add_constraint(self.model.sum(self.variables) >= len(self.graph) // 2)
         # Add constraint: sum of x0, x1, and x2 must be over 2
-        #self.model.add_constraint(self.variables[0] + self.variables[1] + self.variables[2] == 1)
-        #self.model.add_constraint(self.variables[3] + self.variables[4] + self.variables[5] == 1)
-        #self.model.add_constraint(self.variables[6] + self.variables[7] + self.variables[8] == 1)
-        #self.model.add_constraint(self.variables[9] + self.variables[10]  == 1)
+        self.model.add_constraint(self.variables[0] + self.variables[1] + self.variables[2] == 1)
+        self.model.add_constraint(self.variables[3] + self.variables[4] + self.variables[5] == 1)
+        self.model.add_constraint(self.variables[6] + self.variables[7] + self.variables[8] == 1)
+        self.model.add_constraint(self.variables[9] + self.variables[10]  == 1)
 
         self.model.objective=objective
         self.model.maximize(self.objective)
@@ -162,7 +164,7 @@ if __name__ == "__main__":
 
 
     backend = GenericBackendV2(num_qubits=11)
-    qaoa_mes = QAOA(sampler=Sampler(), optimizer=COBYLA(), initial_point=[0.0,0.0])
+    qaoa_mes = QAOA(sampler=BackendSampler(backend=backend), optimizer=COBYLA(), initial_point=[0.0,0.0])
     exact_mes = NumPyMinimumEigensolver()
     exact = MinimumEigenOptimizer(exact_mes) 
 
@@ -182,7 +184,7 @@ if __name__ == "__main__":
     print("len ", [str(x) for x in ising[0].paulis])
 
 
-"""  exact_result = exact.solve(conv.convert(graph.get_qp()))
+    exact_result = exact.solve(conv.convert(graph.get_qp()))
 
     qaoa = MinimumEigenOptimizer(qaoa_mes) 
     #print("Exact:",exact_result.prettyprint())
@@ -190,11 +192,18 @@ if __name__ == "__main__":
     solution = qaoa.solve(graph.get_qp())
     print("QAOA:", format_qaoa_samples(solution.samples))
 
+    #QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
+    #service = QiskitRuntimeService(channel='ibm_quantum')
+    #backend = service.least_busy(min_num_qubits=127)
+    #print(backend)
+    qaoa_mes = QAOA(sampler=BackendSampler(backend=backend), optimizer=COBYLA(), initial_point=[0.0,0.0])
+    qaoa = MinimumEigenOptimizer(qaoa_mes) 
+
     rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact)
     rqaoa_result = rqaoa.solve(graph.get_qp())
     print("RQAOA:" ,rqaoa_result.prettyprint())
 
-
+"""
 
 pres = CplexOptimizer()
 pres.parameters.optimalitytarget = 2

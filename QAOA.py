@@ -15,7 +15,7 @@ from qiskit.circuit import Parameter
 from qiskit_optimization.translators import from_docplex_mp, to_ising
 import rustworkx as rx
 from qiskit_optimization.converters import QuadraticProgramToQubo
-
+from qiskit.quantum_info import Operator
 
 from solver import Solver
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -64,18 +64,18 @@ class QAOArunner():
             pauli_list.append(("".join(paulis)[::-1], weight))
         
 
-        conv = QuadraticProgramToQubo()
+        conv = QuadraticProgramToQubo(penalty =1000)
         solver = Solver(self.graph, relaxed = False) #use solver not to solve, but to get the qubo formulation - must not be relaxd!
         cost_hamiltonian = to_ising(conv.convert(solver.get_qp()))
 
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         cost_hamiltonian = SparsePauliOp.from_list(pauli_list)
 
-        print('Should be: ', cost_hamiltonian)
+        #print('Should be: ', cost_hamiltonian)
 
         if self.test_hamil: 
             cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples)
-            print('Is: ', cost_hamiltonian)
+            #print('Is: ', cost_hamiltonian)
         print('Num qubits: ', cost_hamiltonian.num_qubits)
         qc = None
         if self.qaoa_variant =='normal':
@@ -96,6 +96,17 @@ class QAOArunner():
 
             else:
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
+            
+            cost_operator = qc.cost_operator.to_operator()
+            #print("Cost operator type: ", type(cost_operator))
+            mixer_operator = Operator(qc.mixer_operator)
+            #print("Cost operator: ", cost_operator)
+            #print("Mixer operator: ", mixer_operator)
+
+
+            commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
+            #print("commutator: ", commutator)
+
             qc.measure_all()
         elif self.qaoa_variant =='multiangle': 
             multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(params.depth)]
@@ -122,13 +133,7 @@ class QAOArunner():
         self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
 
-        cost_operator = candidate_circuit.cost_operator
-        mixer_operator = candidate_circuit.mixer_operator
-
-
-        commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
-
-        print("commutator: ", commutator)
+        print("type circuit", type(self.circuit))
 
  
     def build_backend(self):

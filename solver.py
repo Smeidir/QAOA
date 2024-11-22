@@ -12,10 +12,12 @@ import random
 import numpy as np
 from MaxCutProblem import MaxCutProblem
 import time
-from qiskit_optimization.translators import from_docplex_mp
+from qiskit_optimization.translators import from_docplex_mp, to_ising
+from qiskit_optimization import QuadraticProgram
 from qiskit_algorithms import QAOA, NumPyMinimumEigensolver
 from qiskit_algorithms.optimizers import COBYLA
-from qiskit_ibm_runtime import Sampler
+from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
+from qiskit.primitives import Sampler #samplre is deprecated, but need it to run. Why?
 from qiskit_optimization.algorithms import (
     MinimumEigenOptimizer,
     RecursiveMinimumEigenOptimizer,
@@ -23,6 +25,9 @@ from qiskit_optimization.algorithms import (
     OptimizationResultStatus,
 )
 from qiskit.providers.fake_provider import GenericBackendV2
+from qiskit_optimization.algorithms import WarmStartQAOAOptimizer
+from qiskit_optimization.algorithms import MinimumEigenOptimizer, CplexOptimizer
+from qiskit_optimization.converters import QuadraticProgramToQubo
 
 class Solver():
     """
@@ -59,6 +64,15 @@ class Solver():
                     except NoEdgeBetweenNodes:
                         pass
         self.objective = objective
+        
+        # Add equality constraint: sum of variables equals half the number of nodes
+        #self.model.add_constraint(self.model.sum(self.variables) >= len(self.graph) // 2)
+        # Add constraint: sum of x0, x1, and x2 must be over 2
+        #self.model.add_constraint(self.variables[0] + self.variables[1] + self.variables[2] == 1)
+        #self.model.add_constraint(self.variables[3] + self.variables[4] + self.variables[5] == 1)
+        #self.model.add_constraint(self.variables[6] + self.variables[7] + self.variables[8] == 1)
+        #self.model.add_constraint(self.variables[9] + self.variables[10]  == 1)
+
         self.model.objective=objective
         self.model.maximize(self.objective)
 
@@ -93,8 +107,6 @@ class Solver():
         colors = ["tab:grey" if i == 0 else "tab:purple" for i in bitstring]
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
         rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
-solver = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'), True)
-solver.solve(True)
 
 #mystic is legacy for testing - unless we need it later.
 
@@ -105,9 +117,6 @@ def max_cut_objective(x, graph):
             if graph.has_edge(i, j):
                 objective += x[i] + x[j] - 2 * x[i] * x[j]
     return -objective  # Minimize the negative to maximize the original objective
-
-
-
 def solve_with_mystic(graph):
     x0 = [0.0] * len(graph)  # Initial guess
     bounds = [(0,1) for _ in range(len(graph))]
@@ -120,13 +129,8 @@ def solve_with_mystic(graph):
     objective_value = -max_cut_objective(solution_values, graph)
     return solution_values, objective_value
 
-bitstring, objective_value = solve_with_mystic(load_graph_from_csv('data/11_nodes_links_scand.csv'))
-print(f'Objective value: {objective_value:.6f}, Bitstring: {[f"{bit:.4f}" for bit in bitstring]}')
-
-
-
-
-
+#bitstring, objective_value = solve_with_mystic(load_graph_from_csv('data/11_nodes_links_scand.csv'))
+#print(f'Objective value: {objective_value:.6f}, Bitstring: {[f"{bit:.4f}" for bit in bitstring]}')
 def is_almost_integer_solution(solution, tolerance=0.1):
     
     conclusion = all(abs(x - round(x)) < tolerance for x in solution)
@@ -142,18 +146,67 @@ results = []
 
 problem = MaxCutProblem()
 
+def format_qaoa_samples(samples, max_len: int = 10):
+    qaoa_res = []
+    for s in samples:
+            qaoa_res.append(("".join([str(int(_)) for _ in s.x]), s.fval, s.probability))
 
-backend = GenericBackendV2(num_qubits=11)
-qaoa_mes = QAOA(sampler=Sampler(mode = backend), optimizer=COBYLA(), initial_point=[0.0,0.0,0.0,0.0,0.0,0.0], reps = 3)
+    res = sorted(qaoa_res, key=lambda x: -x[1])[0:max_len]
 
-graph = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'))
-print(graph.get_qp().prettyprint())
+    return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
-qaoa = MinimumEigenOptimizer(qaoa_mes) 
-solution = qaoa.solve(graph.get_qp())
 
+if __name__ == "__main__":
+    solver = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'), True)
+    solver.solve(True)
+
+
+    backend = GenericBackendV2(num_qubits=11)
+    qaoa_mes = QAOA(sampler=Sampler(), optimizer=COBYLA(), initial_point=[0.0,0.0])
+    exact_mes = NumPyMinimumEigensolver()
+    exact = MinimumEigenOptimizer(exact_mes) 
+
+
+    graph = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'))
+
+    print('Cplex solver:', graph.solve()[1])
+
+    print(graph.get_qp().prettyprint())
+    conv = QuadraticProgramToQubo()
+
+    print("QUBO:", conv.convert(graph.get_qp()))
+    print("ising:", to_ising(conv.convert(graph.get_qp())))
+    ising = to_ising(conv.convert(graph.get_qp()))
+
+    print("ising" , ising)
+    print("len ", [str(x) for x in ising[0].paulis])
+
+
+"""  exact_result = exact.solve(conv.convert(graph.get_qp()))
+
+    qaoa = MinimumEigenOptimizer(qaoa_mes) 
+    #print("Exact:",exact_result.prettyprint())
+
+    solution = qaoa.solve(graph.get_qp())
+    print("QAOA:", format_qaoa_samples(solution.samples))
+
+    rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact)
+    rqaoa_result = rqaoa.solve(graph.get_qp())
+    print("RQAOA:" ,rqaoa_result.prettyprint())
+
+
+
+pres = CplexOptimizer()
+pres.parameters.optimalitytarget = 2
+ws_qaoa = WarmStartQAOAOptimizer(
+    pre_solver=pres, relax_for_pre_solver=True, qaoa=qaoa_mes, epsilon=0.0
+)
+wsqaoa_result = ws_qaoa.solve(graph.get_qp())
+print("WSQAOA:" ,wsqaoa_result.prettyprint())"""
 
 """
+
+
 for _ in range(num_graphs):
     print("1 done")
     size = random.choice(sizes)
@@ -186,7 +239,7 @@ plt.show()
 print(f'Mystic had a better solution {mystic_better_count} times out of {num_graphs}')
 print(f'Mystic solution was only integers {integer_solution_count} times out of {num_graphs}')
 
-
+""""""
 sizes = range(10, 181, 10)
 runtimes = []
 plot_sizes = [number for number in sizes for i in range(10)]
@@ -194,20 +247,20 @@ plot_sizes = [number for number in sizes for i in range(10)]
 
 for size in sizes:
     runtimes2 = []
-    for i in range(100):
-        graph = problem.get_graph(size, create_random=True)
+    for i in range(1):
+        graph = problem.get_graph(size, create_random=True, random_weights=True)
         solver = Solver(graph, relaxed=False)
         
         start_time = time.time()
         solver.solve(verbose=False)
         solution = solver.solve()
         end_time = time.time()
-        end_time = time.time()
-        
+    
         runtime = end_time - start_time
         runtimes2.append(runtime)
         #print(f'Size: {size}, Runtime: {runtime:.6f} seconds')
     runtimes.append(np.mean(runtimes2))
+    print("Done with ", size)
 
 # Plot results
 plt.figure(figsize=(12, 6))

@@ -19,7 +19,7 @@ from qiskit_optimization.algorithms import (
 from qiskit.providers.fake_provider import GenericBackendV2
 from qiskit_optimization.algorithms import MinimumEigenOptimizer
 from qiskit_optimization.converters import QuadraticProgramToQubo
-
+#TODO: move the test cases here into a more logical place in the code
 class Solver():
     """
     Class which contains the ordinary cplex solver.
@@ -143,7 +143,7 @@ def format_qaoa_samples(samples, max_len: int = 10):
 
     return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
-
+"""
 if __name__ == "__main__":
     solver = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'), True)
     solver.solve(True)
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact)
     rqaoa_result = rqaoa.solve(graph.get_qp())
     print("RQAOA:" ,rqaoa_result.prettyprint())
-"""
+""""""
 
 
 for _ in range(num_graphs):

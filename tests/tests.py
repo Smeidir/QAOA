@@ -5,8 +5,12 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from QAOA import QAOArunner  
+from solver import Solver
 from load_data import load_graph_from_csv
 import params
+import itertools
+from MaxCutProblem import MaxCutProblem
+
 
 class TestQAOArunner(unittest.TestCase):
 
@@ -15,41 +19,37 @@ class TestQAOArunner(unittest.TestCase):
         Set up a small test graph and initialize QAOArunner for testing.
         """
         # Create a simple graph (triangle graph for MaxCut)
-        self.graph = rx.PyGraph()
-        self.graph.add_nodes_from([0, 1, 2])
-        self.graph.add_edges_from([(0, 1, 1.0), (1, 2, 1.0), (2, 0, 1.0)])  # Edges with weights
+        problem = MaxCutProblem()
+        self.graph = problem.get_graph(6, create_random=True,random_weights=False)
         self.big_graph = load_graph_from_csv(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', '11_nodes_links_scand.csv')))
-        all_combos = zip(params.supported_optimizers,params.supported_param_inits, params.supported_optimizers) # deosnt work - fix
-        
-        
-        
-        
-        # Initialize QAOArunner with simulation mode
-        self.qaoa_runner = QAOArunner(graph=self.graph, simulation=True, warm_start=True)
 
-    def test_initialization(self):
-        """
-        Test the initialization of QAOArunner.
-        """
-        self.assertEqual(len(self.qaoa_runner.graph.nodes()), 3)
-        self.assertTrue(self.qaoa_runner.simulation)
-        self.assertEqual(self.qaoa_runner.num_qubits, 3)
+        iterables = [params.supported_qaoa_variants, params.supported_param_inits]
+        self.settings = []
+        for t in itertools.product(*iterables):
+            self.settings.append(t)
+  
+        # Initialize QAOArunner with simulation mode
+        self.qaoa_runner = QAOArunner(graph=self.graph, simulation=True, test=True)
+        self.solver = Solver(self.graph)  
+
+        self.qaoa_runner.build_circuit()
+        self.qaoa_runner.run()
+
 
     def test_build_circuit(self):
         """
         Test the build_circuit method.
         """
-        self.qaoa_runner.build_circuit()
+
         circuit = self.qaoa_runner.circuit
         self.assertIsNotNone(circuit, "Circuit should not be None after building.")
-        self.assertTrue(isinstance(circuit, QAOAAnsatz), f"Circuit should be a QAOAAnsatz. It is {type(circuit)}")
+        from qiskit import QuantumCircuit
+        self.assertTrue(isinstance(circuit, QuantumCircuit), f"Circuit should be a QuantumCircuit. It is {type(circuit)}")
 
     def test_run(self):
         """
         Test the run method to ensure optimization works.
         """
-        self.qaoa_runner.build_circuit()
-        self.qaoa_runner.run()
         solution = self.qaoa_runner.solution
         self.assertIsNotNone(solution, "Solution should not be None after running optimization.")
         self.assertEqual(len(solution), self.qaoa_runner.num_qubits, "Solution length should match number of qubits.")
@@ -58,8 +58,7 @@ class TestQAOArunner(unittest.TestCase):
         """
         Test the evaluation of the sample.
         """
-        self.qaoa_runner.build_circuit()
-        self.qaoa_runner.run()
+
         objective_value = self.qaoa_runner.evaluate_sample()
         self.assertTrue(objective_value is not None, "Objective value should not be None.")
     
@@ -67,8 +66,6 @@ class TestQAOArunner(unittest.TestCase):
         """
         Test drawing the objective function evolution (visual validation needed).
         """
-        self.qaoa_runner.build_circuit()
-        self.qaoa_runner.run()
         # Visual check - ensure no exceptions are raised
         self.qaoa_runner.draw_objective_value()
     
@@ -76,15 +73,17 @@ class TestQAOArunner(unittest.TestCase):
         """
         Test comparing solutions against a known classical solution.
         """
-        classical_solution = ([0, 1, 0], 3.0)  # Example classical solution
-        self.qaoa_runner.build_circuit()
-        self.qaoa_runner.run()
+        classical_solution = self.solver.solve()
         self.qaoa_runner.compare_solutions(classical_solution)
-    
-    def test_all_params(self):
 
-        all_combos = zip(params.supported_optimizers,params.supported_param_inits)
-        print(all_combos)
+    def test_all_inits(self):
+
+
+        for params in self.settings:
+            qaoa = QAOArunner(self.graph, simulation=True, param_initialization=params[1],qaoa_variant=params[0])
+            qaoa.build_circuit()
+            qaoa.run()
+    
         
 
 if __name__ == '__main__':

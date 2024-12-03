@@ -27,7 +27,7 @@ class Solver():
     TODO: Add support for max k-cut
     """
     
-    def __init__(self, graph, relaxed = False, restrictions=False):
+    def __init__(self, graph, relaxed = False, restrictions=False, k=2):
 
         """
         Initializes the model with the given problem, but does not solve.
@@ -36,15 +36,21 @@ class Solver():
         """
         self.graph = graph
         self.model = Model(name="MaxCut")
+        if k> 2:
+            self.model = Model(name="Max-K-Cut")
         self.relaxed = relaxed
 
+        var_multiplier = 1 if k==2 else k
+
         if relaxed: 
-            self.variables = self.model.continuous_var_list(len(self.graph),lb=0,ub=1, name='x')
+            self.variables = self.model.continuous_var_list(var_multiplier*len(self.graph),lb=0,ub=1, name='x')
             self.model.parameters.optimalitytarget =2 #local minima
         else:
-            self.variables = self.model.binary_var_list(len(self.graph), name='x')
+            self.variables = self.model.binary_var_list(var_multiplier*len(self.graph), name='x')
         
         objective = 0
+
+        #for edge in graph.edges:
 
         for i,var in enumerate(self.variables): #hvorfor går jeg ikke bare gjennom edges??
             for j,var2 in enumerate(self.variables):

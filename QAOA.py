@@ -73,7 +73,7 @@ class QAOArunner():
         is_k_cut = False
         if self.k != 2:
             is_k_cut = True
-        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, is_k_cut) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
+        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, k=self.k) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
         cost_hamiltonian = to_ising(conv.convert( self.solver.get_qp()))
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         self.build_backend()
@@ -149,13 +149,10 @@ class QAOArunner():
         #commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
         #print("commutator: ", commutator) #TODO: decide on way to check these operators
 
-        ##TODO: Should qc be a circuit or qaoa ansatz?
-        print("Cost hamiltonian", cost_hamiltonian)
+        ##TODO: Scheck if circuit is flattened
+
         pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
-        print('Parameters: ', qc.parameters)
-        print('Ansatz type:', type(qc))
         candidate_circuit = pm.run(qc)
-        print('Candidate circuit type:' , type(candidate_circuit))
         self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
 
@@ -185,18 +182,20 @@ class QAOArunner():
     def get_init_params(self): 
         param_length = None #none so if its not changed its easier to see bugs - if it was 0 might be bugs further down the line
         if self.qaoa_variant == "vanilla":
-            param_length = 2
+            param_cost_length = 1
+            param_mixer_length = 1
+
         elif self.qaoa_variant == "multiangle":
-            param_length = self.num_qubits + len(self.graph.edges())
+            param_cost_length = len(self.graph.edges())
+            param_mixer_length = self.num_qubits
+
 
         match self.param_initialization: 
             case 'uniform':
-                param_length = param_length*params.depth
-                init_params = np.random.uniform(0,np.pi,param_length)
+                init_params = [np.random.uniform(0,np.pi,param_cost_length) + np.random.uniform(0,np.pi,param_mixer_length) for i in params.depth]
                 return init_params
             case 'gaussian':
-                param_length = param_length*params.depth
-                init_params = np.random.normal(0,np.pi,param_length)
+                init_params = [np.random.normal(0,np.pi,param_cost_length) + np.random.normal(0,np.pi,param_mixer_length) for i in params.depth]
                 return init_params
 
             case 'machinelearning':
@@ -216,7 +215,7 @@ class QAOArunner():
             with Session(backend = self.backend) as session:
                     estimator = Estimator(mode=session)
                     estimator.options.default_shots = 1000
-                    if not self.simulation:
+                    if not self.test:
                             # Set simple error suppression/mitigation options
                             estimator.options.dynamical_decoupling.enable = True
                             estimator.options.dynamical_decoupling.sequence_type = "XY4"
@@ -286,7 +285,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
-        if not self.simulation:
+        if not self.test:
                 # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -320,7 +319,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
-        if not self.simulation:
+        if not self.test:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -349,7 +348,7 @@ class QAOArunner():
 
     def compare_solutions(self, classic_solution):
         if not self.solution:
-            raise ReferenceError("Solution not initalized yet. run()-function must be called before solution can be generated.")
+            raise ReferenceError("Solution not initalized yet. run()-function must be called to generate solution before it can be compared.")
         assert len(self.solution) == len(classic_solution[0]), 'Solutions not the same length.' #TODO: error relating to length of qubits for kcut which requires more qubits
         bools = [a==b for a,b in zip(classic_solution[0],self.solution)]
         bools_reversed =[a!=b for a,b in zip(classic_solution[0],self.solution)]
@@ -364,7 +363,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
-        if not self.simulation:
+        if not self.test:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"

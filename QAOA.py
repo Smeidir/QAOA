@@ -203,7 +203,7 @@ class QAOArunner():
 
                 return init_params
             case 'gaussian':
-                init_params = np.array([[np.random.normal(np.pi,0.2,param_cost_length), (np.random.normal(np.pi/2,0.2,param_mixer_length))] for i in range(params.depth)])
+
                 init_params = np.concatenate([
                     np.concatenate([np.random.normal(np.pi,0.2,param_cost_length), 
                                     (np.random.normal(np.pi/2,0.2,param_mixer_length))])
@@ -216,8 +216,8 @@ class QAOArunner():
                 raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
 
     def function_callback(self, xk):
-            
-            print(f'Current solution: {xk} Current Objective value_ {self.objective_func_vals[-1]}')
+
+        print(f'Current solution: {xk} Current Objective value_ {self.objective_func_vals[-1]}')
 
     def run(self):
         self.objective_func_vals = []
@@ -249,8 +249,7 @@ class QAOArunner():
                     method = self.optimizer,
                     tol = 1e-2,
                     options={'disp': False},
-                    callback= function_callback
-                    )
+                    callback= function_callback)
                     end_time = time.time()
         self.time_elapsed = end_time -start_time
         self.result = result

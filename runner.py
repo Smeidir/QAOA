@@ -47,8 +47,8 @@ for parameters in settings:
     names = []
     for i in range(5,10):
         graphs_i, names_i = problem.get_test_graphs(i)
-        graphs.append(graphs_i[0]) #TODO: check that this works for very small values
-        names.append(names_i[0])
+        graphs.append(graphs_i[0:2]) #TODO: check that this works for very small values
+        names.append(names_i[0:2])
     graphs = list(itertools.chain.from_iterable(graphs))
     names = list(itertools.chain.from_iterable(names))
     futures = [parallell_runner.remote(parameters, graph, name) for graph, name in zip(graphs, names)]

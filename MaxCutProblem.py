@@ -45,7 +45,8 @@ class MaxCutProblem():
     def get_test_graphs(self, n = 5):
         graph_dir = 'graphs'
         graphs = []
-        rng = np.random.default_rng()
+        names = []
+        rng = np.random.default_rng(seed= 1373)
         for filename in os.listdir(graph_dir):
             identifier = 'saved_graph' + str(n)
             if filename.startswith(identifier):
@@ -54,10 +55,32 @@ class MaxCutProblem():
                     graphs_array = graph6_str.split()
                     for graph_str in graphs_array:
                         graph = nx.from_graph6_bytes(graph_str.encode())
-                        edge_list = [edge+(float(rng.uniform(0,1,1)),) for edge in graph.edges]
-                        graph.edges = edge_list
-                        graphs.append(graph)
-            return graphs
+                        pygraph = rx.PyGraph()
+                        node_mapping = {node: pygraph.add_node(node) for node in graph.nodes}
+
+                        # Add edges, including weights if present
+                        for u, v, data in graph.edges(data=True):
+                            weight = data.get("weight", rng.uniform(0,1))  
+                            pygraph.add_edge(node_mapping[u], node_mapping[v], weight)
+
+                        names.append(graph_str)
+                        graphs.append(pygraph)
+                        
+        return graphs, names
+        
+    def draw_test_graphs(self, n=5):
+        graphs, names = self.get_test_graphs(n)
+        fig, axes = plt.subplots(4, 5, figsize=(20, 16))
+        axes = axes.flatten()
+        
+        for i, graph in enumerate(graphs):
+            ax = axes[i]
+            draw_graph(graph, ax=ax)
+            ax.set_title(f"Graph {i+1} with graph6: {names[i]}")
+        
+        plt.tight_layout()
+        plt.show()
+    
 
 def save_graphs(): #Code for getting the graphs from public directory: https://users.cecs.anu.edu.au/~bdm/data/graphs.html
     graph_dir = 'graphs'
@@ -73,33 +96,61 @@ def save_graphs(): #Code for getting the graphs from public directory: https://u
 
             indices = np.arange(len(graphs_array))
             np.random.shuffle(indices)
+
+            if filename == 'graph5c.g6.txt': #not enough symmetric:
+                for index in indices:
+                    graph = nx.from_graph6_bytes(graphs_array[index].encode())
+
+                    degree_parities =[graph.degree(n)%2 for n in graph.nodes]  
+
+                    is_odd= np.all(degree_parities)
+                    is_even = not np.any(degree_parities)
+
+                    if symmetric +  asymmetric == 20:
+                        break
+
+                    if (is_odd or is_even) and symmetric <10:
+                        graphs_to_save.append(graphs_array[index])
+                        symmetric += 1
+
+
+                    elif not (is_odd or is_even) and asymmetric <16:
+                        graphs_to_save.append(graphs_array[index])
+                        asymmetric +=1
+
+
+                    #print(f"Degree parities: {degree_parities}, Is odd: {is_odd}, Is even: {is_even}")
+
+                print(f"File: {filename}, Asymmetric: {asymmetric},Symmetric: {symmetric}")
+                with open(os.path.join(graph_dir, f'saved_{filename}'), 'w') as save_file:
+                    save_file.write('\n'.join(graphs_to_save))
+
             
+            else: 
+                for index in indices:
+                    graph = nx.from_graph6_bytes(graphs_array[index].encode())
 
-            for index in indices:
-                graph = nx.from_graph6_bytes(graphs_array[index].encode())
+                    degree_parities =[graph.degree(n)%2 for n in graph.nodes]  
 
-                degree_parities =[graph.degree(n)%2 for n in graph.nodes]  
+                    is_odd= np.all(degree_parities)
+                    is_even = not np.any(degree_parities)
 
-                is_odd= np.all(degree_parities)
-                is_even = not np.any(degree_parities)
+                    if symmetric +  asymmetric == 20:
+                        break
 
-                if symmetric +  asymmetric == 20:
-                    break
-
-                if (is_odd or is_even) and symmetric <10:
-                    graphs_to_save.append(graphs_array[index])
-                    symmetric += 1
-
-
-                elif not (is_odd or is_even) and asymmetric <10:
-                    graphs_to_save.append(graphs_array[index])
-                    asymmetric +=1
+                    if (is_odd or is_even) and symmetric <10:
+                        graphs_to_save.append(graphs_array[index])
+                        symmetric += 1
 
 
-                #print(f"Degree parities: {degree_parities}, Is odd: {is_odd}, Is even: {is_even}")
+                    elif not (is_odd or is_even) and asymmetric <10:
+                        graphs_to_save.append(graphs_array[index])
+                        asymmetric +=1
 
-            print(f"File: {filename}, Asymmetric: {asymmetric},Symmetric: {symmetric}")
-            with open(os.path.join(graph_dir, f'saved_{filename}'), 'w') as save_file:
-                save_file.write('\n'.join(graphs_to_save))
 
+                    #print(f"Degree parities: {degree_parities}, Is odd: {is_odd}, Is even: {is_even}")
+
+                print(f"File: {filename}, Asymmetric: {asymmetric},Symmetric: {symmetric}")
+                with open(os.path.join(graph_dir, f'saved_{filename}'), 'w') as save_file:
+                    save_file.write('\n'.join(graphs_to_save))
 

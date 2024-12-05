@@ -51,25 +51,28 @@ class Solver():
         objective = 0
 
         #for edge in graph.edges:
+ 
 
-        for i,var in enumerate(self.variables): #hvorfor går jeg ikke bare gjennom edges??
-            for j,var2 in enumerate(self.variables):
-                if i != j and i> j:  
-                    try:
-                        graph.get_edge_data(i,j)
-                        objective += var + var2 - 2*var*var2
-                    except NoEdgeBetweenNodes:
-                        pass
-        self.objective = objective
+        for (i,j, w) in self.graph.weighted_edge_list(): #TODO: extend to k-cut            
+            objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
+            # w is a numpy array ( becasue i use np to generate)
 
         if restrictions:
             for i in range(2,len(graph), 3): #adds that every ordered tuple of three qubits most have 1 positive - for testing now, partitioning later
-                self.model.add_constraint(self.variables[i-2] + self.variables[i-1] + self.variables[i] == 1)
+                self.model.add_constraint(self.variables[i-2] + self.variables[i-1] + self.variables[i] == 1)#TODO: extend to k-cut
 
-
+        self.objective = objective
         self.model.objective=objective
         self.model.maximize(self.objective)
-
+        
+    def evaluate_bitstring(self, bitstring):
+        """
+        Evaluates the objective value for a given bitstring.
+        """
+        objective_value = 0
+        for (i, j, w) in self.graph.weighted_edge_list():
+            objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
+        return objective_value
     def get_qp(self):
         return from_docplex_mp(self.model)
         

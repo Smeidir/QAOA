@@ -37,7 +37,8 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, warm_start=False,restrictions=False, k=2, test = False, flatten = True):
+    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
+                 warm_start=False,restrictions=False, k=2, test = False, flatten = True, verbose = False):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -57,6 +58,8 @@ class QAOArunner():
         self.restrictions = restrictions
         self.test = test
         self.flatten = flatten
+        self.verbose = verbose
+        self.objective_func_vals = []
 
         self.num_qubits = len(self.graph.nodes())
         self.k=k
@@ -80,7 +83,6 @@ class QAOArunner():
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) #TODO: ensure these have the same coefficients - or these should be coefficients based on the 
                                                                             #weights of the connections in the graph, right? so its on the coeffs i should ensure weightedness?
         qc = None
-        self.build_backend()
         if self.qaoa_variant =='vanilla':
 
             if self.warm_start:
@@ -141,13 +143,14 @@ class QAOArunner():
                             initial_state = initial_state, mixer = mixer_state)
             qaoa = MinimumEigenOptimizer(qaoa_mes) 
             self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact) #TODO: Find exact¨
-        #cost_operator = qc.cost_operator.to_operator()
-        #print("Cost operator type: ", type(cost_operator))
-        #mixer_operator = Operator(qc.mixer_operator)#why does this work on not warm start but not on warm start?
-        #print("Cost operator: ", cost_operator)
-        #print("Mixer operator: ", mixer_operator)
-        #commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
-        #print("commutator: ", commutator) #TODO: decide on way to check these operators
+        
+        commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
+        cost_operator = commutation_tester.cost_operator.to_operator()
+        mixer_operator = Operator(commutation_tester.mixer_operator)
+        commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
+        if np.allclose(commutator.data, np.zeros((commutator.data.shape))):
+            raise ArithmeticError("Operators commute.")
+
 
         ##TODO: Scheck if circuit is flattened
 
@@ -192,47 +195,67 @@ class QAOArunner():
 
         match self.param_initialization: 
             case 'uniform':
-                init_params = [np.random.uniform(0,np.pi,param_cost_length) + np.random.uniform(0,np.pi,param_mixer_length) for i in params.depth]
+                init_params = np.concatenate([
+                    np.concatenate([np.random.uniform(0, 2*np.pi, param_cost_length), 
+                                    np.random.uniform(0, np.pi, param_mixer_length)])
+                    for _ in range(params.depth)
+                ])
+
                 return init_params
             case 'gaussian':
-                init_params = [np.random.normal(0,np.pi,param_cost_length) + np.random.normal(0,np.pi,param_mixer_length) for i in params.depth]
+                init_params = np.array([[np.random.normal(np.pi,0.2,param_cost_length), (np.random.normal(np.pi/2,0.2,param_mixer_length))] for i in range(params.depth)])
+                init_params = np.concatenate([
+                    np.concatenate([np.random.normal(np.pi,0.2,param_cost_length), 
+                                    (np.random.normal(np.pi/2,0.2,param_mixer_length))])
+                    for _ in range(params.depth)
+                ])
+                init_params =init_params.flatten()
                 return init_params
 
             case 'machinelearning':
                 raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
 
-
+    def function_callback(self, xk):
+            
+            print(f'Current solution: {xk} Current Objective value_ {self.objective_func_vals[-1]}')
 
     def run(self):
         self.objective_func_vals = []
         init_params = self.get_init_params()
+        if self.verbose:
+            function_callback=self.function_callback
+        else:
+            function_callback = None
 
         start_time = time.time()
         if self.qaoa_variant == 'recursive':
             self.result = self.rqaoa.solve(self.graph.get_qp())
-
+        
         else:
             with Session(backend = self.backend) as session:
                     estimator = Estimator(mode=session)
                     estimator.options.default_shots = 1000
-                    if not self.test:
+                    if not self.simulation:
                             # Set simple error suppression/mitigation options
                             estimator.options.dynamical_decoupling.enable = True
                             estimator.options.dynamical_decoupling.sequence_type = "XY4"
                             estimator.options.twirling.enable_gates = True
                             estimator.options.twirling.num_randomizations = "auto"
-
+                    start_time = time.time()
                     result = minimize(
                     self.cost_func_estimator, 
                     init_params,
                     args= (self.circuit, self.cost_hamiltonian, estimator),
                     method = self.optimizer,
                     tol = 1e-2,
-                    options={'disp': True}
+                    options={'disp': False},
+                    callback= function_callback
                     )
-
+                    end_time = time.time()
+        self.time_elapsed = end_time -start_time
         self.result = result
-        print(self.result)
+        self.fev = result.nfev
+        if self.verbose: print(self.result)
         self.circuit = self.circuit.assign_parameters(self.result.x)
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_sample()
@@ -240,7 +263,9 @@ class QAOArunner():
 
     def evaluate_sample(self) -> float:
         assert len(self.solution) == len(list(self.graph.nodes())), "The length of x must coincide with the number of nodes in the graph."
-        return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
+        solution_value = self.solver.evaluate_bitstring(self.solution)
+        return solution_value
+        #return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
 
     def cost_func_estimator(self,params, ansatz, hamiltonian, estimator):
         #TODO: see if this can be optimized
@@ -285,7 +310,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
-        if not self.test:
+        if not self.simulation:
                 # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -294,12 +319,12 @@ class QAOArunner():
 
         job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()
-        print(counts_int)
+        #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
         shots = sum(counts_int.values())
         final_distribution_int = {key: val/shots for key, val in counts_int.items()}
         final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
-        print(final_distribution_int)
+        #print(final_distribution_int)
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
             return [int(digit) for digit in result]
@@ -319,7 +344,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
-        if not self.test:
+        if not self.simulation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -328,12 +353,12 @@ class QAOArunner():
 
         job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()
-        print(counts_int)
+        #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
         shots = sum(counts_int.values())
         final_distribution_int = {key: val/shots for key, val in counts_int.items()}
         final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
-        print(final_distribution_int)
+        #print(final_distribution_int)
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
             return [int(digit) for digit in result]
@@ -363,7 +388,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
-        if not self.test:
+        if not self.simulation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"

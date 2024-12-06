@@ -139,10 +139,14 @@ class QAOArunner():
 
 
             
-            qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=COBYLA(), reps = params.depth, initial_point=[0.0,0.0], 
-                            initial_state = initial_state, mixer = mixer_state)
-            qaoa = MinimumEigenOptimizer(qaoa_mes) 
-            self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact) #TODO: Find exact¨
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=COBYLA(), reps = params.depth, initial_point=self.get_init_params(), 
+                                initial_state = initial_state, mixer = mixer_state)
+                qaoa = MinimumEigenOptimizer(qaoa_mes) 
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=Solver(self.graph)) #TODO: Find exact¨
+            else:
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=COBYLA(), reps = params.depth, initial_point=self.get_init_params())                               
+                qaoa = MinimumEigenOptimizer(qaoa_mes) 
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=Solver(self.graph)) #TODO: Find exact¨
         
         commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
         cost_operator = commutation_tester.cost_operator.to_operator()
@@ -184,11 +188,11 @@ class QAOArunner():
 
     def get_init_params(self): 
         param_length = None #none so if its not changed its easier to see bugs - if it was 0 might be bugs further down the line
-        if self.qaoa_variant == "vanilla":
-            param_cost_length = 1
-            param_mixer_length = 1
+        param_cost_length = 1
+        param_mixer_length = 1
 
-        elif self.qaoa_variant == "multiangle":
+
+        if self.qaoa_variant == "multiangle":
             param_cost_length = len(self.graph.edges())
             param_mixer_length = self.num_qubits
 

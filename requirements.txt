@@ -16,3 +16,4 @@ scipy==1.14.1
 seaborn==0.13.2
 shapely==2.0.6
 rustworkx==0.15.1
+yagmail==0.15.293

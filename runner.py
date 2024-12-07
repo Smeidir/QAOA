@@ -9,6 +9,9 @@ import ray
 import numpy as np
 import yagmail
 
+from MaxCutProblem import MaxCutProblem
+problem = MaxCutProblem()
+
 with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
@@ -31,10 +34,10 @@ if ray.is_initialized():
     print('Shutting down old Ray instance.')
 ray.init(num_cpus=15)
 
-iterables = ['multiangle', params.supported_param_inits, [True,False]] 
+iterables = [['multiangle'], params.supported_param_inits, [True,False]] 
 settings = list(itertools.product(*iterables))
 print(settings)
-
+print('Depth: ', params.depth)
 data = []
 
 for parameters in settings:

@@ -4,7 +4,7 @@ from rustworkx import NoEdgeBetweenNodes
 import rustworkx as rx
 from rustworkx.visualization import mpl_draw as draw_graph
 from load_data import load_graph_from_csv
-from mystic.solvers import fmin, fmin_powell
+#from mystic.solvers import fmin, fmin_powell
 import numpy as np
 from MaxCutProblem import MaxCutProblem
 from qiskit_optimization.translators import from_docplex_mp, to_ising

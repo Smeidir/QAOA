@@ -9,7 +9,9 @@ import params
 import numpy as np
 from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
 from scipy.optimize import minimize
-from qiskit_algorithms.optimizers import COBYLA
+from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
+from qiskit_algorithms.optimizers.scipy_optimizer import SciPyOptimizer
+
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.primitives import BackendSampler
 from qiskit import QuantumCircuit
@@ -27,6 +29,7 @@ from qiskit_optimization.algorithms import (
 from solver import Solver
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_algorithms import QAOA
+
 
 class QAOArunner():
     """
@@ -136,17 +139,22 @@ class QAOArunner():
                     mixer_state.ry(thetas[qubit],qubit) 
                     mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
                     mixer_state.ry(-thetas[qubit],qubit)
-
-
+                opti = None
+                if self.optimizer == "COBYLA": opti = COBYLA()
+                if self.optimizer == "COBYQA": opti= COBYQA()
             
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=COBYLA(), reps = params.depth, initial_point=self.get_init_params(), 
-                                initial_state = initial_state, mixer = mixer_state)
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = params.depth, initial_point=self.get_init_params(), 
+                                initial_state = initial_state, mixer = mixer_state,callback = self.recursive_callback)
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=Solver(self.graph)) #TODO: Find exact¨
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
             else:
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=COBYLA(), reps = params.depth, initial_point=self.get_init_params())                               
+                opti = None
+                if self.optimizer == "COBYLA": opti = COBYLA()
+                if self.optimizer == "COBYQA": opti= SciPyOptimizer(method = "COBYQA")
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = params.depth, initial_point=self.get_init_params()
+                ,callback = self.recursive_callback)                          
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=Solver(self.graph)) #TODO: Find exact¨
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
         
         commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
         cost_operator = commutation_tester.cost_operator.to_operator()
@@ -157,10 +165,10 @@ class QAOArunner():
 
 
         ##TODO: Scheck if circuit is flattened
-
-        pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
-        candidate_circuit = pm.run(qc)
-        self.circuit = candidate_circuit
+        if not self.qaoa_variant =='recursive':
+            pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
+            candidate_circuit = pm.run(qc)
+            self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
 
     def print_problem(self):
@@ -219,21 +227,33 @@ class QAOArunner():
             case 'machinelearning':
                 raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
 
-    def function_callback(self, xk):
+    def callback_function(self, xk):
+        print(f'Current solution: {xk} Current Objective value_{self.objective_func_vals[-1]}')
 
-        print(f'Current solution: {xk} Current Objective value_ {self.objective_func_vals[-1]}')
+    def recursive_callback(self, *xk):
+        self.fev = xk[0]
 
     def run(self):
         self.objective_func_vals = []
         init_params = self.get_init_params()
         if self.verbose:
-            function_callback=self.function_callback
+            callback_function=self.callback_function
         else:
-            function_callback = None
+            callback_function = None
 
         start_time = time.time()
         if self.qaoa_variant == 'recursive':
-            self.result = self.rqaoa.solve(self.graph.get_qp())
+            start_time = time.time()
+            result = self.rqaoa.solve(self.solver.get_qp())
+
+            self.time_elapsed = time.time() -start_time
+            self.result = result
+            if self.verbose: print(self.result)
+            #self.circuit = self.rqaoa._optiizer hard to get the circuit out
+            self.solution = result.x
+            self.objective_value = result.fval
+
+
         
         else:
             with Session(backend = self.backend) as session:
@@ -253,15 +273,16 @@ class QAOArunner():
                     method = self.optimizer,
                     tol = 1e-2,
                     options={'disp': False},
-                    callback= function_callback)
-                    end_time = time.time()
-        self.time_elapsed = end_time -start_time
-        self.result = result
-        self.fev = result.nfev
-        if self.verbose: print(self.result)
-        self.circuit = self.circuit.assign_parameters(self.result.x)
-        self.solution = self.calculate_solution()
-        self.objective_value = self.evaluate_sample()
+                    callback= callback_function)
+                 
+            self.time_elapsed = time.time() -start_time
+            self.result = result
+            print(self.result.X)
+            self.fev = result.nfev
+            if self.verbose: print(self.result)
+            self.circuit = self.circuit.assign_parameters(self.result.x)
+            self.solution = self.calculate_solution()
+            self.objective_value = self.evaluate_sample()
         
 
     def evaluate_sample(self) -> float:

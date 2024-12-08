@@ -8,7 +8,7 @@ from solver import Solver
 import ray
 import numpy as np
 import yagmail
-export RAY_IGNORE_UNHANDLED_ERRORS=1
+
 
 from MaxCutProblem import MaxCutProblem
 problem = MaxCutProblem()

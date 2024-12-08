@@ -277,7 +277,6 @@ class QAOArunner():
                  
             self.time_elapsed = time.time() -start_time
             self.result = result
-            print(self.result.X)
             self.fev = result.nfev
             if self.verbose: print(self.result)
             self.circuit = self.circuit.assign_parameters(self.result.x)

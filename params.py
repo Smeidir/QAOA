@@ -1,5 +1,5 @@
 graph_size = 7
-depth = 1
+depth = 3
 supported_qaoa_variants = ['vanilla', 'multiangle','recursive']
 supported_param_inits = ['uniform','gaussian']
 supported_optimizers = ['COBYLA', 'COBYQA']

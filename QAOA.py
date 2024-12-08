@@ -301,7 +301,6 @@ class QAOArunner():
 
         results = job.result()[0]
         cost = results.data.evs
-
         self.objective_func_vals.append(cost)
 
         return cost

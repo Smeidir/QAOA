@@ -156,12 +156,12 @@ class QAOArunner():
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
         
-        commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
+        """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
         cost_operator = commutation_tester.cost_operator.to_operator()
         mixer_operator = Operator(commutation_tester.mixer_operator)
         commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
         if np.allclose(commutator.data, np.zeros((commutator.data.shape))):
-            raise ArithmeticError("Operators commute.")
+            raise ArithmeticError("Operators commute.")"""
 
 
         ##TODO: Scheck if circuit is flattened

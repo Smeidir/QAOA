@@ -17,7 +17,7 @@ with open("email_credentials.txt", "r") as f:
 import ast
 import networkx as nx
 
-with open("test_settings.txt", "r", encoding="UTF_16") as f:
+with open("test_settings.txt", "r") as f:
     settings = ast.literal_eval(f.read().strip())
 
 

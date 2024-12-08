@@ -14,6 +14,11 @@ problem = MaxCutProblem()
 
 with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
+import ast
+
+with open("../test_settings.txt", "r", encoding="UTF_16") as f:
+    settings = ast.literal_eval(f.read().strip())
+
 
 @ray.remote
 def parallell_runner(parameters, graph,name):
@@ -34,8 +39,6 @@ if ray.is_initialized():
     print('Shutting down old Ray instance.')
 ray.init()
 
-iterables = [['multiangle'], params.supported_param_inits, [True,False]] 
-settings = list(itertools.product(*iterables))
 print(settings)
 print('Depth: ', params.depth)
 data = []
@@ -44,7 +47,8 @@ for parameters in settings:
     print('Parameters:', parameters)
     graphs = []
     names = []
-    for i in range(5,10):
+    for i in range(9,4, -1):
+        print(i)
         graphs_i, names_i = problem.get_test_graphs(i)
         graphs.append(graphs_i) #TODO: check that this works for very small values
         names.append(names_i)

@@ -69,6 +69,7 @@ class Solver():
         """
         Evaluates the objective value for a given bitstring.
         """
+        print(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
             objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])

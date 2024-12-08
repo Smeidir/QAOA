@@ -41,7 +41,7 @@ def parallell_runner(parameters, graph,name):
 if ray.is_initialized():
     ray.shutdown()
     print('Shutting down old Ray instance.')
-ray.init(num_cpus=48, _system_config={"worker_lease_timeout_milliseconds": 0}, IGNORE)
+ray.init(num_cpus=48, _system_config={"worker_lease_timeout_milliseconds": 0})
 
 print(settings)
 print('Depth: ', params.depth)

@@ -32,7 +32,7 @@ def parallell_runner(parameters, graph,name):
 if ray.is_initialized():
     ray.shutdown()
     print('Shutting down old Ray instance.')
-ray.init(num_cpus=15)
+ray.init()
 
 iterables = [['multiangle'], params.supported_param_inits, [True,False]] 
 settings = list(itertools.product(*iterables))
@@ -58,7 +58,7 @@ for parameters in settings:
         ray.cancel(task)
     underway_df = pd.DataFrame(ray.get(result_ids))
     underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
-    data.extend(results)
+    data.extend(ray.get(result_ids))
     print(f'Done with Parameters: {parameters} at time: {time.time()}')
 
     

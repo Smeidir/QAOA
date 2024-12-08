@@ -8,6 +8,7 @@ from solver import Solver
 import ray
 import numpy as np
 import yagmail
+export RAY_IGNORE_UNHANDLED_ERRORS=1
 
 from MaxCutProblem import MaxCutProblem
 problem = MaxCutProblem()
@@ -26,10 +27,10 @@ def parallell_runner(parameters, graph,name):
     result = f"Parameters: {parameters}, Graph Name: {name}"
     return result
 
-"""if ray.is_initialized():
+if ray.is_initialized():
     ray.shutdown()
     print('Shutting down old Ray instance.')
-ray.init()"""
+ray.init(num_cpus=48, _system_config={"worker_lease_timeout_milliseconds": 0})
 
 print(settings)
 print('Depth: ', params.depth)

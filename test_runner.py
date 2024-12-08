@@ -59,7 +59,7 @@ all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]}
 
 print('Settings:', settings)
 
-futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos_dict]
+futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
 
 result_ids, unfinished = ray.wait(futures, timeout = 60*60*12, num_returns = len(graphs))
 for task in unfinished:

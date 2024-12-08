@@ -67,7 +67,7 @@ for task in unfinished:
 underway_df = pd.DataFrame(ray.get(result_ids))
 underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
 data.extend(ray.get(result_ids))
-print(f'Done with Parameters: {Settings} at time: {time.time()}')
+print(f'Done with Parameters: {settings} at time: {time.time()}')
 
 
 df = pd.DataFrame(data)

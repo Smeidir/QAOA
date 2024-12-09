@@ -11,7 +11,8 @@ from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
 from scipy.optimize import minimize
 from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
 from qiskit_algorithms.optimizers.scipy_optimizer import SciPyOptimizer
-
+from qiskit_aer import AerSimulator, StatevectorSimulator
+from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit.primitives import BackendSampler
 from qiskit import QuantumCircuit
@@ -41,7 +42,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, test = False, flatten = True, verbose = False):
+                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -59,10 +60,11 @@ class QAOArunner():
         self.solver = solver
         self.warm_start =warm_start
         self.restrictions = restrictions
-        self.test = test
+        self.errors = errors
         self.flatten = flatten
         self.verbose = verbose
         self.objective_func_vals = []
+        self.depth = depth
 
         self.num_qubits = len(self.graph.nodes())
         self.k=k
@@ -101,21 +103,21 @@ class QAOArunner():
                     mixer_state.ry(thetas[qubit],qubit) 
                     mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
                     mixer_state.ry(-thetas[qubit],qubit)
-                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth, initial_state=initial_state, mixer_operator=mixer_state, flatten=True)
+                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth, initial_state=initial_state, mixer_operator=mixer_state, flatten=True)
 
             else:
-                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
+                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
             qc.measure_all()
 
         elif self.qaoa_variant =='multiangle': 
-            multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(params.depth)]
-            multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(params.depth)]
+            multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
+            multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
     
             qc = QuantumCircuit(self.num_qubits)
             for _ in range(self.num_qubits): #initial state
                 qc.h(_)
 
-            for i in range(params.depth):
+            for i in range(self.depth):
                 for idx, edge in enumerate(self.graph.edge_list()):
                     qc.cx(edge[0], edge[1])
                     qc.rz(multiangle_gammas[i][idx], edge[1])
@@ -143,7 +145,7 @@ class QAOArunner():
                 if self.optimizer == "COBYLA": opti = COBYLA()
                 if self.optimizer == "COBYQA": opti= COBYQA()
             
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = params.depth, initial_point=self.get_init_params(), 
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params(), 
                                 initial_state = initial_state, mixer = mixer_state,callback = self.recursive_callback)
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
@@ -151,12 +153,12 @@ class QAOArunner():
                 opti = None
                 if self.optimizer == "COBYLA": opti = COBYLA()
                 if self.optimizer == "COBYQA": opti= SciPyOptimizer(method = "COBYQA")
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = params.depth, initial_point=self.get_init_params()
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
                 ,callback = self.recursive_callback)                          
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
         
-        """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = params.depth)
+        """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
         cost_operator = commutation_tester.cost_operator.to_operator()
         mixer_operator = Operator(commutation_tester.mixer_operator)
         commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
@@ -180,11 +182,13 @@ class QAOArunner():
 
     def build_backend(self):
 
-        if self.test:
-            self.backend = GenericBackendV2(self.num_qubits) #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
+        if not self.errors:
+            self.backend = StatevectorSimulator() #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
         elif self.simulation:
-            self.backend = FakeBrisbane()
-            print("You are running on the local simulator: ", self.backend.name)
+            noise_model = NoiseModel.from_backend(FakeBrisbane())
+            self.backend = AerSimulator(noise_model=noise_model)
+            print("You are running on the local Aer simulator: ", self.backend.name, "of ", FakeBrisbane().name)
+
         else:
             QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
             service = QiskitRuntimeService(channel='ibm_quantum')
@@ -210,7 +214,7 @@ class QAOArunner():
                 init_params = np.concatenate([
                     np.concatenate([np.random.uniform(0, 2*np.pi, param_cost_length), 
                                     np.random.uniform(0, np.pi, param_mixer_length)])
-                    for _ in range(params.depth)
+                    for _ in range(self.depth)
                 ])
 
                 return init_params
@@ -219,7 +223,7 @@ class QAOArunner():
                 init_params = np.concatenate([
                     np.concatenate([np.random.normal(np.pi,0.2,param_cost_length), 
                                     (np.random.normal(np.pi/2,0.2,param_mixer_length))])
-                    for _ in range(params.depth)
+                    for _ in range(self.depth)
                 ])
                 init_params =init_params.flatten()
                 return init_params

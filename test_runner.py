@@ -112,4 +112,3 @@ yag.send( subject=subject, contents=body, attachments=attachment)
 print("Email sent successfully!")
 yag.close()
 
-"""

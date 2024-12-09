@@ -78,30 +78,38 @@ print('len all_combos',len(all_combos))
 
 print('Settings:', settings)
 
+parameter_set = []    
+
+
+for i in range(len(settings[0])):
+    parameter_set += set([settings[k][i] for k in range(len(settings))])
+
+
+parameter_string = [str(x) + "_" for x in parameter_set]
+parameter_string = "".join(parameter_string)
+parameter_string = parameter_string[0:-1]
+
+
+
+
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
 
-result_ids, unfinished = ray.wait(futures, timeout = 60*60*20, num_returns = len(all_combos))
+result_ids, unfinished = ray.wait(futures, timeout = 60*60*16, num_returns = len(all_combos))
 for task in unfinished:
     ray.cancel(task)
 
-underway_df = pd.DataFrame(ray.get(result_ids))
-underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
-data.extend(ray.get(result_ids))
-print(f'Done with Parameters: {settings} at time: {time.time()}')
-
 
 df = pd.DataFrame(data)
-df.to_csv('data.csv', index=False)
+df.to_csv(f'results_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
-body = "Here is the data you requested."
-attachment = "data.csv"
+body = f'Solstorm run - {parameter_string}'
+attachment = f'results_{parameter_string}.csv'
 
 yag.send( subject=subject, contents=body, attachments=attachment)
 print("Email sent successfully!")
 yag.close()
 
-df = pd.DataFrame(data)
-df.to_csv(f'results_.csv')
+"""

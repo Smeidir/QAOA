@@ -221,8 +221,8 @@ class QAOArunner():
             case 'gaussian':
 
                 init_params = np.concatenate([
-                    np.concatenate([np.random.normal(np.pi,0.1,param_cost_length), 
-                                    (np.random.normal(np.pi/2,0.1,param_mixer_length))])
+                    np.concatenate([np.random.normal(np.pi,0.2,param_cost_length), 
+                                    (np.random.normal(np.pi/2,0.2,param_mixer_length))])
                     for _ in range(self.depth)
                 ])
                 init_params =init_params.flatten()

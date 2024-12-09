@@ -22,7 +22,6 @@ with open("test_settings.txt", "r") as f:
     settings = ast.literal_eval(f.read().strip())
 
 
-settings = [('uniform', 'COBYLA', 'vanilla', False, True, 1)]
 logging.basicConfig(level=logging.DEBUG)
 
 @ray.remote(num_cpus = 4)
@@ -61,9 +60,10 @@ for i in range(9,4,-1):
     graphs_i, names_i = problem.get_test_graphs(i)
     graphs.append(graphs_i) #TODO: check that this works for very small values
     names.append(names_i)
-print('Amount of graphs: ', len(graphs))
+
 graphs = list(itertools.chain.from_iterable(graphs))
 names = list(itertools.chain.from_iterable(names))
+print('Amount of graphs: ', len(graphs))
 
 combos = [settings, graphs]
 print('combos', len(combos))

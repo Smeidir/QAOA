@@ -97,6 +97,11 @@ futures = [parallell_runner.remote(parameters, graph, name) for parameters, grap
 result_ids, unfinished = ray.wait(futures, timeout = 60*60*16, num_returns = len(all_combos))
 for task in unfinished:
     ray.cancel(task)
+    
+underway_df = pd.DataFrame(ray.get(result_ids))
+underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
+data.extend(ray.get(result_ids))
+print(f'Done with Parameters: {settings} at time: {time.time()}')
 
 
 df = pd.DataFrame(data)

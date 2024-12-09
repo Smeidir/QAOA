@@ -18,8 +18,8 @@ with open("email_credentials.txt", "r") as f:
 import ast
 import networkx as nx
 
-#with open("test_settings.txt", "r") as f:
- #   settings = ast.literal_eval(f.read().strip())
+with open("test_settings.txt", "r") as f:
+    settings = ast.literal_eval(f.read().strip())
 
 
 settings = [('uniform', 'COBYLA', 'vanilla', False, True, 1)]
@@ -27,14 +27,18 @@ logging.basicConfig(level=logging.DEBUG)
 
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph,name):
-    print(f"Processing task {parameters}, {name}")
+    timestamp = time.time()
+    date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
+    print(f"Processing task {parameters}, {name} at time {date_time}")
     qaoa = QAOArunner(graph, simulation=True, param_initialization=parameters[0], optimizer =  parameters[1], 
     qaoa_variant=parameters[2], warm_start=parameters[3], errors = parameters[4],depth = parameters[5])
     qaoa.build_circuit()
     qaoa.run()
     solver = Solver(graph)
     bitstring, value = solver.solve()
-    print(f"Solved task {parameters}, {name}")
+    end_time  = time.time()
+    date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
+    print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp} seconds.")
     return {'param_initialization': parameters[0], 'optimizer': parameters[1],'qaoa_variant': parameters[2], 'warm_start' : parameters[3], 
     'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
@@ -53,11 +57,11 @@ data = []
 graphs, names = [],[]
 
 
-for i in range(5,6):
+for i in range(9,4,-1):
     graphs_i, names_i = problem.get_test_graphs(i)
     graphs.append(graphs_i) #TODO: check that this works for very small values
     names.append(names_i)
-print(len(graphs))
+print('Amount of graphs: ', len(graphs))
 graphs = list(itertools.chain.from_iterable(graphs))
 names = list(itertools.chain.from_iterable(names))
 
@@ -76,9 +80,10 @@ print('Settings:', settings)
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
 
-result_ids, unfinished = ray.wait(futures, timeout = 60*60*12, num_returns = len(all_combos))
+result_ids, unfinished = ray.wait(futures, timeout = 60*60*20, num_returns = len(all_combos))
 for task in unfinished:
     ray.cancel(task)
+
 underway_df = pd.DataFrame(ray.get(result_ids))
 underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
 data.extend(ray.get(result_ids))

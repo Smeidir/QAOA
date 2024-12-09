@@ -1,3 +1,4 @@
+index,param_initialization,qaoa_variant,optimizer,depth,graph_size,graph_name,time_elapsed,quantum_func_evals,obj_func_evolution,quantum_solution,quantum_obj_value,classic_solution,classic_value
 0,uniform,recursive,COBYLA,1,5,DFw,129.89907693862915,32,[],[1. 1. 1. 0. 0.],3.3806223225650873,"[1.0, 1.0, 1.0, 0, 0]",3.3806223225650873
 1,uniform,recursive,COBYLA,1,5,DUw,142.89373970031738,36,[],[1. 1. 0. 0. 0.],2.8541802014301934,"[1.0, 1.0, 0, 0, 0]",2.8541802014301934
 2,uniform,recursive,COBYLA,1,5,DV{,111.65415930747986,29,[],[1. 1. 0. 0. 0.],2.1698107728157328,"[1.0, 1.0, 0, 0, 0]",2.1698107728157328

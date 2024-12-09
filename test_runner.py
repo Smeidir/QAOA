@@ -27,9 +27,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph,name):
+    print(f"Processing task {parameters}, {name}")
     qaoa = QAOArunner(graph, simulation=True, param_initialization=parameters[0], optimizer =  parameters[1], 
     qaoa_variant=parameters[2], warm_start=parameters[3], errors = parameters[4],depth = parameters[5])
-    print(f"Processing task {parameters}, {name}")
     qaoa.build_circuit()
     qaoa.run()
     solver = Solver(graph)
@@ -45,7 +45,7 @@ def parallell_runner(parameters, graph,name):
 if ray.is_initialized():
     ray.shutdown()
     print('Shutting down old Ray instance.')
-ray.init()
+ray.init(log_to_driver=True)
 
 print(settings)
 data = []

@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 
-@ray.remote(num_cpus = 4)
+@ray.remote(num_cpus = 1)
 def parallell_runner(parameters, graph,name):
     timestamp = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
@@ -42,7 +42,7 @@ def parallell_runner(parameters, graph,name):
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
     print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp} seconds.")
     return {'param_initialization': parameters[0], 'optimizer': parameters[1],'qaoa_variant': parameters[2], 'warm_start' : parameters[3], 
-    'errors':parameters[4], 'depth' : parameters[5],  'graph_size': len(graph.nodes()), 'graph_name' : name,
+    'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
         'classic_solution' : bitstring, 'classic_value': value }

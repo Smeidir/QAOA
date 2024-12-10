@@ -73,7 +73,7 @@ class MaxCutProblem():
         graph5 = 'D~{'
         graph9 = 'HCrfZzf'
         graph5_graph = graphs[names.index(graph5)]
-        graps,names = self.get_test_graphs(9)
+        graphs,names = self.get_test_graphs(9)
         graph9_graph = graphs[names.index(graph9)]
 
   

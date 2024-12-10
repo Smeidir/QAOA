@@ -10,6 +10,7 @@ import numpy as np
 import yagmail
 import logging
 
+
 from MaxCutProblem import MaxCutProblem
 problem = MaxCutProblem()
 
@@ -24,6 +25,9 @@ with open("test_settings.txt", "r") as f:
 
 logging.basicConfig(level=logging.DEBUG)
 
+total_tasks = 1
+finished_tasks = 0
+
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph,name):
     timestamp = time.time()
@@ -37,7 +41,8 @@ def parallell_runner(parameters, graph,name):
     bitstring, value = solver.solve()
     end_time  = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
-    print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp} seconds.")
+    finished_tasks += 1
+    print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp:.2f} seconds. Done with {(finished_taks/total_tasks)*100:.2f} % of tasks")
     return {'param_initialization': parameters[0], 'optimizer': parameters[1],'qaoa_variant': parameters[2], 'warm_start' : parameters[3], 
     'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
@@ -75,7 +80,7 @@ all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
 all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
 #TODO: make dictionary
 print('len all_combos',len(all_combos))
-
+total_tasks = len(all_combos)
 print('Settings:', settings)
 
 parameter_set = []    
@@ -91,13 +96,12 @@ parameter_string = parameter_string[0:-1]
 
 
 
-
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
 
 result_ids, unfinished = ray.wait(futures, timeout = 60*60*16, num_returns = len(all_combos))
 for task in unfinished:
     ray.cancel(task)
-    
+
 underway_df = pd.DataFrame(ray.get(result_ids))
 underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
 data.extend(ray.get(result_ids))

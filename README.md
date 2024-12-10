@@ -39,4 +39,5 @@ todo master:
 - Check ut goemanns-williamson algorithm  - parameter estimation with this?
 - If cobyla works by using the quantum circuit as an oracle, what is the criteria for the oracle to outperform an ordinary computer?
 - times of multi-angle vs using normal multiple times
+- do recursive until a given stop criteria of correlation is reached
 

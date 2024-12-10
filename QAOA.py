@@ -42,7 +42,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1):
+                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, recursive_vars = 4):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -65,6 +65,7 @@ class QAOArunner():
         self.verbose = verbose
         self.objective_func_vals = []
         self.depth = depth
+        self.recursive_vars = recursive_vars
 
         self.num_qubits = len(self.graph.nodes())
         self.k=k
@@ -148,7 +149,7 @@ class QAOArunner():
                 qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params(), 
                                 initial_state = initial_state, mixer = mixer_state,callback = self.recursive_callback)
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=self.recursive_vars) #TODO: Find exact¨
             else:
                 opti = None
                 if self.optimizer == "COBYLA": opti = COBYLA()
@@ -156,7 +157,7 @@ class QAOArunner():
                 qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
                 ,callback = self.recursive_callback)                          
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=4) #TODO: Find exact¨
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=self.recursive_vars) #TODO: Find exact¨
         
         """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
         cost_operator = commutation_tester.cost_operator.to_operator()

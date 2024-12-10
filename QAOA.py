@@ -66,6 +66,7 @@ class QAOArunner():
         self.objective_func_vals = []
         self.depth = depth
         self.recursive_vars = recursive_vars
+        self.fev = 0 #0 quantum function evals, yet.
 
         self.num_qubits = len(self.graph.nodes())
         self.k=k

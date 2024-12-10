@@ -150,7 +150,7 @@ class QAOArunner():
                 qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params(), 
                                 initial_state = initial_state, mixer = mixer_state,callback = self.recursive_callback)
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=self.recursive_vars) #TODO: Find exact¨
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
             else:
                 opti = None
                 if self.optimizer == "COBYLA": opti = COBYLA()
@@ -158,7 +158,7 @@ class QAOArunner():
                 qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
                 ,callback = self.recursive_callback)                          
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=self.recursive_vars) #TODO: Find exact¨
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
         
         """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
         cost_operator = commutation_tester.cost_operator.to_operator()
@@ -255,7 +255,7 @@ class QAOArunner():
             self.time_elapsed = time.time() -start_time
             self.result = result
             if self.verbose: print(self.result)
-            #self.circuit = self.rqaoa._optiizer hard to get the circuit out
+            #self.circuit = self.rqaoa._optimizer hard to get the circuit out
             self.solution = result.x
             self.objective_value = result.fval
 

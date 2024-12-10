@@ -106,7 +106,7 @@ print(f'Done with Parameters: {settings} at time: {time.time()}')
 
 
 df = pd.DataFrame(data)
-df.to_csv(f'results_{parameter_string}.csv')
+df.to_csv(f'results_singlegraph_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"

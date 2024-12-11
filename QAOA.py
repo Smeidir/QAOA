@@ -130,6 +130,7 @@ class QAOArunner():
             qc.measure_all()
 
         elif self.qaoa_variant =='recursive': #TODO: Fixx this
+            self.cum_fev = 0
             if self.warm_start:
                 solver = Solver(self.graph, relaxed = True, restrictions=self.restrictions)
                 solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
@@ -237,7 +238,10 @@ class QAOArunner():
         print(f'Current solution: {xk} Current Objective value_{self.objective_func_vals[-1]}')
 
     def recursive_callback(self, *xk):
+        if xk[0] == 1: #started new iteration
+            self.cum_fev += self.fev #add amount last iteration  
         self.fev = xk[0]
+        print('recursive fev',self.cum_fev + self.fev)
 
     def run(self):
         self.objective_func_vals = []
@@ -251,7 +255,7 @@ class QAOArunner():
         if self.qaoa_variant == 'recursive':
             start_time = time.time()
             result = self.rqaoa.solve(self.solver.get_qp())
-
+            self.fev += self.cum_fev
             self.time_elapsed = time.time() -start_time
             self.result = result
             if self.verbose: print(self.result)

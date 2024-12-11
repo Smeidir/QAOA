@@ -241,7 +241,7 @@ class QAOArunner():
         if xk[0] == 1: #started new iteration
             self.cum_fev += self.fev #add amount last iteration  
         self.fev = xk[0]
-        print('recursive fev',self.cum_fev + self.fev)
+
 
     def run(self):
         self.objective_func_vals = []

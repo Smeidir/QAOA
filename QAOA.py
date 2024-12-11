@@ -42,7 +42,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, recursive_vars = 4):
+                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -65,7 +65,7 @@ class QAOArunner():
         self.verbose = verbose
         self.objective_func_vals = []
         self.depth = depth
-        self.recursive_vars = recursive_vars
+ 
         self.fev = 0 #0 quantum function evals, yet.
 
         self.num_qubits = len(self.graph.nodes())

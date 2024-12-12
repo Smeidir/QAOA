@@ -298,7 +298,6 @@ class QAOArunner():
         solution_value = self.solver.evaluate_bitstring(self.solution)
         return solution_value
         #return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
-
     def cost_func_estimator(self,params, ansatz, hamiltonian, estimator):
         #TODO: see if this can be optimized
         #transform observable defined on virtual qubits to an observable defined on all physical qubits
@@ -309,6 +308,7 @@ class QAOArunner():
         job = estimator.run([pub])
 
         results = job.result()[0]
+       
         cost = results.data.evs
         self.objective_func_vals.append(cost)
 

@@ -20,6 +20,9 @@ from qiskit.providers.fake_provider import GenericBackendV2
 from qiskit_optimization.algorithms import MinimumEigenOptimizer
 from qiskit_optimization.converters import QuadraticProgramToQubo
 #TODO: move the test cases here into a more logical place in the code
+
+import cvxpy as cp
+
 class Solver():
     """
     Class which contains the ordinary cplex solver.
@@ -69,7 +72,6 @@ class Solver():
         """
         Evaluates the objective value for a given bitstring.
         """
-        print(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
             objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
@@ -84,6 +86,43 @@ class Solver():
         Returns bitstring, solution_value
         """
         
+        if self.relaxed:
+
+                        # Define the weight matrix (from QUBO or adjacency matrix of graph)
+      
+            W = np.zeros((len(self.graph), len(self.graph)))
+            for (i, j, w) in self.graph.weighted_edge_list():
+                W[i, j] = w
+                W[j, i] = w  # Assuming the graph is undirected
+
+            n = W.shape[0]
+            X = cp.Variable((n, n), PSD=True)  # PSD: Positive semidefinite
+            constraints = [cp.diag(X) == 1]  # Diagonal constraints X_ii = 1
+
+            # Objective function
+            objective = cp.Maximize(cp.sum(cp.multiply(W, (1 - X))) / 4)
+
+            # Solve
+            problem = cp.Problem(objective, constraints)
+            problem.solve()
+            # Eigendecomposition of X
+            eigenvalues, eigenvectors = np.linalg.eigh(X.value)
+
+            # Filter out negligible eigenvalues (numerical precision issues)
+            valid_indices = eigenvalues > 1e-10
+            eigenvalues = eigenvalues[valid_indices]
+            eigenvectors = eigenvectors[:, valid_indices]
+
+            # Form the vectors V (scaled by square root of eigenvalues)
+            V = eigenvectors @ np.diag(np.sqrt(eigenvalues))
+            random_hyperplane = np.random.randn(V.shape[1])
+
+            # Assign each vertex to a partition based on the sign of the dot product with the hyperplane
+            assignments = np.sign(V @ random_hyperplane)
+            
+            assignments = np.where(assignments == -1, 0, assignments)
+            #return assignments, self.evaluate_bitstring(assignments)
+                        
         if verbose:
             print(f'Objective to maximize: {self.objective} for relaxed = {self.relaxed}')
         self.model.maximize(self.objective)
@@ -153,9 +192,18 @@ def format_qaoa_samples(samples, max_len: int = 10):
 
     return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
-"""
+
 if __name__ == "__main__":
-    solver = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'), True)
+    graphs, names = problem.get_test_graphs(9)
+    for graph in graphs:
+        solver = Solver(graph, True)
+        solver.solve(True)
+
+
+
+
+"""   
+    solver = Solver(problem.get_graph(6, True, True), True)
     solver.solve(True)
 
     backend = GenericBackendV2(num_qubits=11)

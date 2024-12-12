@@ -40,4 +40,5 @@ todo master:
 - If cobyla works by using the quantum circuit as an oracle, what is the criteria for the oracle to outperform an ordinary computer?
 - times of multi-angle vs using normal multiple times
 - do recursive until a given stop criteria of correlation is reached
-
+- How much do we save on recursive QAOA, compared to using the extra runs for just running it longer?
+- UOBYQA as optimizer

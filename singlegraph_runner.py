@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 
-@ray.remote(num_cpus = 1)
+@ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph,name):
     timestamp = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))

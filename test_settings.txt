@@ -1,1 +1,1 @@
-[('gaussian', 'COBYLA', 'recursive', False, True, 1)]
+[('uniform', 'COBYLA', 'recursive', False, False, 1), ('uniform', 'COBYLA', 'recursive', False, False, 3), ('uniform', 'COBYLA', 'recursive', False, True, 1), ('uniform', 'COBYLA', 'recursive', False, True, 3), ('gaussian', 'COBYLA', 'recursive', False, False, 1), ('gaussian', 'COBYLA', 'recursive', False, False, 3), ('gaussian', 'COBYLA', 'recursive', False, True, 1), ('gaussian', 'COBYLA', 'recursive', False, True, 3)]

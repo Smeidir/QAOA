@@ -91,6 +91,34 @@ class MaxCutProblem():
         
         plt.tight_layout()
         plt.show()
+
+    def draw_given_graphs(self, graph_names):
+
+        graphs, names = self.get_test_graphs()
+        all_graphs, all_names = [], []
+        for n in range(5, 10):  # Assuming n ranges from 5 to 9
+            graphs, names = self.get_test_graphs(n)
+            all_graphs.extend(graphs)
+            all_names.extend(names)
+        
+        num_graphs = len(graph_names)
+        num_cols = 4
+        num_rows = (num_graphs + num_cols - 1) // num_cols
+        
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(20, 4 * num_rows))
+        axes = axes.flatten()
+        
+        for i, graph_name in enumerate(graph_names):
+            graph = all_graphs[all_names.index(graph_name)]
+            ax = axes[i]
+            draw_graph(graph, ax=ax)
+            ax.set_title(f"Graph with graph6: {graph_name}")
+        
+        for j in range(i + 1, len(axes)):
+            fig.delaxes(axes[j])
+        
+        plt.tight_layout()
+        plt.show()
     
 
 def save_graphs(): #Code for getting the graphs from public directory: https://users.cecs.anu.edu.au/~bdm/data/graphs.html

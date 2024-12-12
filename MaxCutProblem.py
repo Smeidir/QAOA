@@ -67,6 +67,19 @@ class MaxCutProblem():
                         graphs.append(pygraph)
                         
         return graphs, names
+    
+    def get_graph_by_name(self, name):
+        graphs, names = self.get_test_graphs()
+        all_graphs, all_names = [], []
+        for n in range(5, 10):  # Assuming n ranges from 5 to 9
+            graphs, names = self.get_test_graphs(n)
+            all_graphs.extend(graphs)
+            all_names.extend(names)
+
+        graph = all_graphs[all_names.index(name)]
+        return graph
+
+
 
     def get_single_graphs(self):
         graphs,names = self.get_test_graphs(5)

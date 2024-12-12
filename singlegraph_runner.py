@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 
-@ray.remote(num_cpus = 4)
+@ray.remote(num_cpus = 1)
 def parallell_runner(parameters, graph,name):
     timestamp = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
@@ -71,7 +71,7 @@ all_combos = list(itertools.product(*combos))
 
 all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
 all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
-all_combos *= 1
+all_combos *= 100
 
 #TODO: make dictionary
 print('len all_combos',len(all_combos))

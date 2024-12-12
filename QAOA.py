@@ -126,7 +126,6 @@ class QAOArunner():
                     qc.cx(edge[0], edge[1])
                 for idx in range(self.num_qubits):#TODO: add multiangle here
                     qc.rx(2*multiangle_betas[i][idx], idx)
-
             qc.measure_all()
 
         elif self.qaoa_variant =='recursive': #TODO: Fixx this

@@ -170,7 +170,7 @@ class QAOArunner():
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
             else:
                 opti = None
-                if self.optimizer == "COBYLA": opti = COBYLA(tol = 0)
+                if self.optimizer == "COBYLA": opti = COBYLA()
                 if self.optimizer == "COBYQA": opti= SciPyOptimizer(method = "COBYQA")
                 qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend, options = {'shots': 1024}), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
                 ,callback = self.recursive_callback)                          
@@ -254,10 +254,6 @@ class QAOArunner():
         print(f'Current solution: {xk} Current Objective value_{self.objective_func_vals[-1]}')
 
     def recursive_callback(self, *xk):
-        #runtime = time.time()-self.start_time
-        #print(xk)
-        #if runtime > 40:
-        #   raise TimeoutError()
         if xk[0] == 1: #started new iteration
             self.cum_fev += self.fev #add amount last iteration  
         self.fev = xk[0]

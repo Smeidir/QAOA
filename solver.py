@@ -121,7 +121,7 @@ class Solver():
             assignments = np.sign(V @ random_hyperplane)
             
             assignments = np.where(assignments == -1, 0, assignments)
-            #return assignments, self.evaluate_bitstring(assignments)
+            return assignments, self.evaluate_bitstring(assignments)
                         
         if verbose:
             print(f'Objective to maximize: {self.objective} for relaxed = {self.relaxed}')

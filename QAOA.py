@@ -211,7 +211,7 @@ class QAOArunner():
         else:
             QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
             service = QiskitRuntimeService(channel='ibm_quantum')
-            self.backend = service.least_busy(min_num_qubits=127)
+            self.backend = service.backend('ibm_brisbane')
             print("You are running on the prestigious IBM machine ", self.backend)
         
     def draw_circuit(self):
@@ -235,7 +235,7 @@ class QAOArunner():
                                     np.random.uniform(0, np.pi, param_mixer_length)])
                     for _ in range(self.depth)
                 ])
-
+                init_params =init_params.flatten()
                 return init_params
             case 'gaussian':
 
@@ -269,26 +269,21 @@ class QAOArunner():
 
         self.start_time = time.time()
         if self.qaoa_variant == 'recursive':
-            with Session(backend = self.backend) as session:
-                    estimator = Estimator(mode=session)
-                    estimator.options.default_shots = 1000
-                    start_time = time.time()
-                    try:
-                        result = self.rqaoa.solve(self.solver.get_qp())
-                    except TimeoutError:
-                        print('yallayalla')
-                    self.fev += self.cum_fev
-                    self.time_elapsed = time.time() -start_time
-                    self.result = result
-                    if self.verbose: print(self.result)
-                    #self.circuit = self.rqaoa._optimizer hard to get the circuit out
-                    self.solution = result.x
-                    self.objective_value = result.fval
+
+                result = self.rqaoa.solve(self.solver.get_qp())
+
+                self.fev += self.cum_fev
+                self.time_elapsed = time.time() -start_time
+                self.result = result
+                if self.verbose: print(self.result)
+                #self.circuit = self.rqaoa._optimizer hard to get the circuit out
+                self.solution = result.x
+                self.objective_value = result.fval
 
 
         
         else:
-            with Session(backend = self.backend) as session:
+            with Session(backend = self.backend, max_time="120m") as session:
                     estimator = Estimator(mode=session)
                     estimator.options.default_shots = 1000
                     if not self.simulation:

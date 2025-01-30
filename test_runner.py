@@ -96,7 +96,7 @@ parameter_string = parameter_string[0:-1]
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
 
-result_ids, unfinished = ray.wait(futures, timeout = 60*60*16, num_returns = len(all_combos))
+result_ids, unfinished = ray.wait(futures, timeout = 60*60*24*5, num_returns = len(all_combos))
 for task in unfinished:
     ray.cancel(task)
 

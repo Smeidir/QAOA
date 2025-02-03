@@ -1,4 +1,4 @@
 supported_qaoa_variants = ['vanilla', 'multiangle','recursive']
 supported_param_inits = ['uniform','gaussian']
 supported_optimizers = ['COBYLA', 'COBYQA']
-api_key = '03843ce3d10fc76098604107be125a5b1ab1ba2eb3f0db5846b98894eed0713251464566ab257838e8fa6eee6a3fb6886f95f912581b043f357b5cf63b6ea6c6'
+api_key = '6f1e0cb3bbbbdb6720ed8a755437ee0b3085a54f33274090146083fc7cc0dc9b5aea059a954e1618466f0d290dd5d8f18e8856e7539e5ec7ed38fd167efa0338'

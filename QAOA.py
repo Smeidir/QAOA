@@ -296,7 +296,7 @@ class QAOArunner():
             args= (self.circuit, self.cost_hamiltonian, estimator),
             method = self.optimizer,
             tol = 1e-2,
-            options={'disp': False},
+            options={'disp': False, 'maxiter': 10000},
             callback= callback_function)
                  
             self.time_elapsed = time.time() -start_time

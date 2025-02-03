@@ -80,16 +80,13 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        is_k_cut = False
-        if self.k != 2:
-            is_k_cut = True
         self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, k=self.k) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
-        cost_hamiltonian = to_ising(conv.convert( self.solver.get_qp()))
+        cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp()))
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         self.build_backend()
-        cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) #TODO: ensure these have the same coefficients - or these should be coefficients based on the 
-                                                                            #weights of the connections in the graph, right? so its on the coeffs i should ensure weightedness?
+        cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
         qc = None
+        
         if self.qaoa_variant =='vanilla':
 
             if self.warm_start:
@@ -211,7 +208,7 @@ class QAOArunner():
         else:
             QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
             service = QiskitRuntimeService(channel='ibm_quantum')
-            self.backend = service.backend('ibm_brisbane')
+            self.backend = service.least_busy(min_num_qubits=127)
             print("You are running on the prestigious IBM machine ", self.backend)
         
     def draw_circuit(self):
@@ -266,7 +263,7 @@ class QAOArunner():
             callback_function=self.callback_function
         else:
             callback_function = None
-
+        self.runtimes = []
         self.start_time = time.time()
         if self.qaoa_variant == 'recursive':
 
@@ -283,24 +280,24 @@ class QAOArunner():
 
         
         else:
-            with Session(backend = self.backend, max_time="120m") as session:
-                    estimator = Estimator(mode=session)
-                    estimator.options.default_shots = 1000
-                    if not self.simulation:
-                            # Set simple error suppression/mitigation options
-                            estimator.options.dynamical_decoupling.enable = True
-                            estimator.options.dynamical_decoupling.sequence_type = "XY4"
-                            estimator.options.twirling.enable_gates = True
-                            estimator.options.twirling.num_randomizations = "auto"
-                    start_time = time.time()
-                    result = minimize(
-                    self.cost_func_estimator, 
-                    init_params,
-                    args= (self.circuit, self.cost_hamiltonian, estimator),
-                    method = self.optimizer,
-                    tol = 1e-2,
-                    options={'disp': False},
-                    callback= callback_function)
+            
+            estimator = Estimator(mode=self.backend)
+            estimator.options.default_shots = 1000
+            if not self.simulation:
+                    # Set simple error suppression/mitigation options
+                    estimator.options.dynamical_decoupling.enable = True
+                    estimator.options.dynamical_decoupling.sequence_type = "XY4"
+                    estimator.options.twirling.enable_gates = True
+                    estimator.options.twirling.num_randomizations = "auto"
+            start_time = time.time()
+            result = minimize(
+            self.cost_func_estimator, 
+            init_params,
+            args= (self.circuit, self.cost_hamiltonian, estimator),
+            method = self.optimizer,
+            tol = 1e-2,
+            options={'disp': False},
+            callback= callback_function)
                  
             self.time_elapsed = time.time() -start_time
             self.result = result
@@ -324,9 +321,10 @@ class QAOArunner():
 
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
-
+        start_time = time.time()
         results = job.result()[0]
-       
+        elapsed_time = time.time()-start_time
+        self.runtimes.append(elapsed_time)
         cost = results.data.evs
         self.objective_func_vals.append(cost)
 

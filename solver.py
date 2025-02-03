@@ -4,7 +4,7 @@ from rustworkx import NoEdgeBetweenNodes
 import rustworkx as rx
 from rustworkx.visualization import mpl_draw as draw_graph
 from load_data import load_graph_from_csv
-#from mystic.solvers import fmin, fmin_powell
+from mystic.solvers import fmin, fmin_powell
 import numpy as np
 from MaxCutProblem import MaxCutProblem
 from qiskit_optimization.translators import from_docplex_mp, to_ising
@@ -16,11 +16,10 @@ from qiskit_optimization.algorithms import (
     MinimumEigenOptimizer,
     RecursiveMinimumEigenOptimizer,
 )
-from qiskit.providers.fake_provider import GenericBackendV2
-from qiskit_optimization.algorithms import MinimumEigenOptimizer
-from qiskit_optimization.converters import QuadraticProgramToQubo
-#TODO: move the test cases here into a more logical place in the code
 
+#TODO: move the test cases here into a more logical place in the code
+import time
+import mystic
 import cvxpy as cp
 
 class Solver():
@@ -280,32 +279,35 @@ plt.show()
 print(f'Mystic had a better solution {mystic_better_count} times out of {num_graphs}')
 print(f'Mystic solution was only integers {integer_solution_count} times out of {num_graphs}')
 
-""""""
-sizes = range(10, 181, 10)
+
+sizes = [4,4,7,14,21,28]
 runtimes = []
 plot_sizes = [number for number in sizes for i in range(10)]
 
 
 for size in sizes:
     runtimes2 = []
-    for i in range(1):
+    for i in range(100):
         graph = problem.get_graph(size, create_random=True, random_weights=True)
         solver = Solver(graph, relaxed=False)
         
         start_time = time.time()
-        solver.solve(verbose=False)
-        solution = solver.solve()
+        solver.solve()
         end_time = time.time()
     
         runtime = end_time - start_time
         runtimes2.append(runtime)
         #print(f'Size: {size}, Runtime: {runtime:.6f} seconds')
+
     runtimes.append(np.mean(runtimes2))
     print("Done with ", size)
-
+runtimes = runtimes[1:]
+sizes = sizes[1:]
 # Plot results
 plt.figure(figsize=(12, 6))
 plt.plot(sizes, runtimes, 'o-', label='CPLEX Runtime')
+print(sizes)
+print([runtime.item() for runtime in runtimes])
 plt.xlabel('Graph Size')
 plt.ylabel('Runtime (seconds)')
 plt.legend()

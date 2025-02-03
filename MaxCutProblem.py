@@ -15,9 +15,6 @@ class MaxCutProblem():
     Graph_size: size of graph. Only relevant for random graphs
     create_random: set to true for making random graphs.
     """
-    #TODO: make the graphs not have multiple edges between the same nodes
-    #TODO: maybe make it faster?
-
     def __init__(self):
         pass
     
@@ -67,6 +64,19 @@ class MaxCutProblem():
                         graphs.append(pygraph)
                         
         return graphs, names
+    
+    def get_graph_by_name(self, name):
+        graphs, names = self.get_test_graphs()
+        all_graphs, all_names = [], []
+        for n in range(5, 10):  # Assuming n ranges from 5 to 9
+            graphs, names = self.get_test_graphs(n)
+            all_graphs.extend(graphs)
+            all_names.extend(names)
+
+        graph = all_graphs[all_names.index(name)]
+        return graph
+
+
 
     def get_single_graphs(self):
         graphs,names = self.get_test_graphs(5)
@@ -119,7 +129,91 @@ class MaxCutProblem():
         
         plt.tight_layout()
         plt.show()
+
+
+    def get_representative_graphs(self):
+        complete_graph = rx.generators.complete_graph(7)
+        sparse_graph = rx.undirected_gnm_random_graph(7, 9)
+        dense_graph = rx.undirected_gnm_random_graph(7,18)
+
+
+
+        rng = np.random.default_rng(seed=13)
+        edge_list_complete = complete_graph.edge_list()
+        edge_list_sparse = sparse_graph.edge_list()
+        edge_list_dense = dense_graph.edge_list()
+
+
+        edge_list_complete = [edge+(float(rng.uniform(0,1,1)),) for edge in edge_list_complete]
+        edge_list_sparse = [edge+(float(rng.uniform(0,1,1)),) for edge in edge_list_sparse if (edge[1],edge[0]) not in edge_list_sparse]
+        edge_list_dense = [edge+(float(rng.uniform(0,1,1)),) for edge in edge_list_dense if (edge[1],edge[0]) not in edge_list_dense]
+
+        complete_graph.clear_edges()
+        complete_graph.add_edges_from(edge_list_complete)
+
+        sparse_graph.clear_edges()
+        sparse_graph.add_edges_from(edge_list_sparse)
+
+        dense_graph.clear_edges()
+        dense_graph.add_edges_from(edge_list_dense)
+
+
+        self.complete_graph = complete_graph
+        self.sparse_graph = sparse_graph
+        self.dense_graph = dense_graph
+        return complete_graph, sparse_graph, dense_graph
+        
+        
+    def draw_representative_graphs(self):
+        graphs = self.get_representative_graphs()
+        fig, axes = plt.subplots(1, 3, figsize=(12, 6))
+        axes = axes.flatten()
+        
+        for i, graph in enumerate(graphs): 
+            print(i)
+            ax = axes[i]
+            draw_graph(graph, ax=ax)
+            ax.set_title(f"Representative Graph {i+1}")
+        
+        plt.tight_layout()
+        plt.show()
+
+    def print_graphs(self):
+
+        graphs = [self.complete_graph, self.sparse_graph, self.dense_graph]
+        graph_names = ["Complete Graph", "Sparse Graph", "Dense Graph"]
+        
+        for graph, name in zip(graphs, graph_names):
+            nx_graph = nx.Graph()
+            nx_graph.add_nodes_from(range(graph.num_nodes()))
+            nx_graph.add_weighted_edges_from(graph.weighted_edge_list())
+            graph6_str = nx.to_graph6_bytes(nx_graph).decode().strip()
+            print(f"{name} (graph6): {graph6_str}")
+    def load_representative_graphs(self):
+
+        rng = np.random.default_rng(seed=13)
+        edge_list_complete = complete_graph.edge_list()
+        edge_list_sparse = sparse_graph.edge_list()
+        edge_list_dense = dense_graph.edge_list()
+
+
+        edge_list_complete = [edge+(float(rng.uniform(0,1,1)),) for edge in edge_list_complete]
+        edge_list_sparse = [edge+(float(rng.uniform(0,1,1)),) for edge in edge_list_sparse if (edge[1],edge[0]) not in edge_list_sparse]
+        edge_list_dense = [edge+(float(rng.uniform(0,1,1)),) for edge in edge_list_dense if (edge[1],edge[0]) not in edge_list_dense]
+
+        complete_graph.clear_edges()
+        complete_graph.add_edges_from(edge_list_complete)
+
+        sparse_graph.clear_edges()
+        sparse_graph.add_edges_from(edge_list_sparse)
+
+        dense_graph.clear_edges()
+        dense_graph.add_edges_from(edge_list_dense)
+
+        return complete_graph, sparse_graph, dense_graph
     
+
+
 
 def save_graphs(): #Code for getting the graphs from public directory: https://users.cecs.anu.edu.au/~bdm/data/graphs.html
     graph_dir = 'graphs'

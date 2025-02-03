@@ -80,16 +80,13 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        is_k_cut = False
-        if self.k != 2:
-            is_k_cut = True
         self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, k=self.k) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
-        cost_hamiltonian = to_ising(conv.convert( self.solver.get_qp()))
+        cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp()))
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         self.build_backend()
-        cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) #TODO: ensure these have the same coefficients - or these should be coefficients based on the 
-                                                                            #weights of the connections in the graph, right? so its on the coeffs i should ensure weightedness?
+        cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
         qc = None
+        
         if self.qaoa_variant =='vanilla':
 
             if self.warm_start:
@@ -114,19 +111,35 @@ class QAOArunner():
         elif self.qaoa_variant =='multiangle': 
             multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
             multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
-    
             qc = QuantumCircuit(self.num_qubits)
-            for _ in range(self.num_qubits): #initial state
-                qc.h(_)
+            if self.warm_start:
+                solver = Solver(self.graph, relaxed = True, restrictions=self.restrictions)
+                solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
+                thetas = 2*np.arcsin(np.sqrt(solution_values))
+                for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
+                    qc.ry(thetas[qubit],qubit)
 
-            for i in range(self.depth):
-                for idx, edge in enumerate(self.graph.edge_list()):
-                    qc.cx(edge[0], edge[1])
-                    qc.rz(multiangle_gammas[i][idx], edge[1])
-                    qc.cx(edge[0], edge[1])
-                for idx in range(self.num_qubits):#TODO: add multiangle here
-                    qc.rx(2*multiangle_betas[i][idx], idx)
+                for i in range(self.depth):
+                    for idx, edge in enumerate(self.graph.edge_list()):
+                        qc.cx(edge[0], edge[1])
+                        qc.rz(multiangle_gammas[i][idx], edge[1])
+                        qc.cx(edge[0], edge[1])
+                    for idx in range(self.num_qubits):
+                        qc.ry(thetas[qubit],qubit) 
+                        qc.rx(2*multiangle_betas[i][idx], idx)
+                        qc.ry(-thetas[qubit],qubit)
 
+            else:
+                for _ in range(self.num_qubits): #initial state
+                    qc.h(_)
+
+                for i in range(self.depth):
+                    for idx, edge in enumerate(self.graph.edge_list()):
+                        qc.cx(edge[0], edge[1])
+                        qc.rz(multiangle_gammas[i][idx], edge[1])
+                        qc.cx(edge[0], edge[1])
+                    for idx in range(self.num_qubits):
+                        qc.rx(2*multiangle_betas[i][idx], idx)
             qc.measure_all()
 
         elif self.qaoa_variant =='recursive': #TODO: Fixx this
@@ -148,7 +161,7 @@ class QAOArunner():
                 if self.optimizer == "COBYLA": opti = COBYLA()
                 if self.optimizer == "COBYQA": opti= COBYQA()
             
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params(), 
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend, options = {'shots': 1024}), optimizer=opti, reps = self.depth, initial_point=self.get_init_params(), 
                                 initial_state = initial_state, mixer = mixer_state,callback = self.recursive_callback)
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
@@ -156,7 +169,7 @@ class QAOArunner():
                 opti = None
                 if self.optimizer == "COBYLA": opti = COBYLA()
                 if self.optimizer == "COBYQA": opti= SciPyOptimizer(method = "COBYQA")
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend, options = {'shots': 1024}), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
                 ,callback = self.recursive_callback)                          
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
@@ -219,7 +232,7 @@ class QAOArunner():
                                     np.random.uniform(0, np.pi, param_mixer_length)])
                     for _ in range(self.depth)
                 ])
-
+                init_params =init_params.flatten()
                 return init_params
             case 'gaussian':
 
@@ -250,40 +263,41 @@ class QAOArunner():
             callback_function=self.callback_function
         else:
             callback_function = None
-
-        start_time = time.time()
+        self.runtimes = []
+        self.start_time = time.time()
         if self.qaoa_variant == 'recursive':
-            start_time = time.time()
-            result = self.rqaoa.solve(self.solver.get_qp())
-            self.fev += self.cum_fev
-            self.time_elapsed = time.time() -start_time
-            self.result = result
-            if self.verbose: print(self.result)
-            #self.circuit = self.rqaoa._optimizer hard to get the circuit out
-            self.solution = result.x
-            self.objective_value = result.fval
+
+                result = self.rqaoa.solve(self.solver.get_qp())
+
+                self.fev += self.cum_fev
+                self.time_elapsed = time.time() -start_time
+                self.result = result
+                if self.verbose: print(self.result)
+                #self.circuit = self.rqaoa._optimizer hard to get the circuit out
+                self.solution = result.x
+                self.objective_value = result.fval
 
 
         
         else:
-            with Session(backend = self.backend) as session:
-                    estimator = Estimator(mode=session)
-                    estimator.options.default_shots = 1000
-                    if not self.simulation:
-                            # Set simple error suppression/mitigation options
-                            estimator.options.dynamical_decoupling.enable = True
-                            estimator.options.dynamical_decoupling.sequence_type = "XY4"
-                            estimator.options.twirling.enable_gates = True
-                            estimator.options.twirling.num_randomizations = "auto"
-                    start_time = time.time()
-                    result = minimize(
-                    self.cost_func_estimator, 
-                    init_params,
-                    args= (self.circuit, self.cost_hamiltonian, estimator),
-                    method = self.optimizer,
-                    tol = 1e-2,
-                    options={'disp': False},
-                    callback= callback_function)
+            
+            estimator = Estimator(mode=self.backend)
+            estimator.options.default_shots = 1000
+            if not self.simulation:
+                    # Set simple error suppression/mitigation options
+                    estimator.options.dynamical_decoupling.enable = True
+                    estimator.options.dynamical_decoupling.sequence_type = "XY4"
+                    estimator.options.twirling.enable_gates = True
+                    estimator.options.twirling.num_randomizations = "auto"
+            start_time = time.time()
+            result = minimize(
+            self.cost_func_estimator, 
+            init_params,
+            args= (self.circuit, self.cost_hamiltonian, estimator),
+            method = self.optimizer,
+            tol = 1e-2,
+            options={'disp': False},
+            callback= callback_function)
                  
             self.time_elapsed = time.time() -start_time
             self.result = result
@@ -299,7 +313,6 @@ class QAOArunner():
         solution_value = self.solver.evaluate_bitstring(self.solution)
         return solution_value
         #return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
-
     def cost_func_estimator(self,params, ansatz, hamiltonian, estimator):
         #TODO: see if this can be optimized
         #transform observable defined on virtual qubits to an observable defined on all physical qubits
@@ -308,8 +321,10 @@ class QAOArunner():
 
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
-
+        start_time = time.time()
         results = job.result()[0]
+        elapsed_time = time.time()-start_time
+        self.runtimes.append(elapsed_time)
         cost = results.data.evs
         self.objective_func_vals.append(cost)
 

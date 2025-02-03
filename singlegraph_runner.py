@@ -56,26 +56,23 @@ ray.init(log_to_driver=True)
 print(settings)
 data = []
 
-graphs, names = [],[]
+name= 'F?~vw'
 
 
-graphs, names = problem.get_single_graphs()
+graphs = problem.get_graph_by_name(name)
 
-print('Amount of graphs: ', len(graphs))
-
-combos = [settings, graphs] #TODO: run 20 times
-print('combos', len(combos))
+combos = [settings, [graphs]] 
 
 all_combos = list(itertools.product(*combos))
 
-
-all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
+n_times = 100
+all_combos = [combo + (name,) for combo in all_combos]
 all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
-all_combos *= 1
+all_combos *= n_times
 
 #TODO: make dictionary
 print('len all_combos',len(all_combos))
-print('performing all 20 times')
+print(f'performing all {n_times} times')
 
 
 print('Settings:', settings)

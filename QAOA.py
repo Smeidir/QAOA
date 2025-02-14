@@ -174,7 +174,7 @@ class QAOArunner():
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
         
-        """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
+        """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth) #TODO: enable this
         cost_operator = commutation_tester.cost_operator.to_operator()
         mixer_operator = Operator(commutation_tester.mixer_operator)
         commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
@@ -270,9 +270,10 @@ class QAOArunner():
                 result = self.rqaoa.solve(self.solver.get_qp())
 
                 self.fev += self.cum_fev
-                self.time_elapsed = time.time() -start_time
+                self.time_elapsed = time.time() -self.start_time
                 self.result = result
-                if self.verbose: print(self.result)
+                if self.verbose:
+                    print(dir(result))
                 #self.circuit = self.rqaoa._optimizer hard to get the circuit out
                 self.solution = result.x
                 self.objective_value = result.fval
@@ -299,6 +300,7 @@ class QAOArunner():
             options={'disp': False, 'maxiter': 10000},
             callback= callback_function)
                  
+            self.final_params = result.x
             self.time_elapsed = time.time() -start_time
             self.result = result
             self.fev = result.nfev
@@ -340,6 +342,7 @@ class QAOArunner():
         plt.xlabel("Iteration")
         plt.ylabel("Cost")
         plt.show()
+
     def plot_result(self):
         colors = ["tab:grey" if i == 0 else "tab:purple" for i in self.solution]
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
@@ -445,3 +448,46 @@ class QAOArunner():
         job = sampler.run([pub], shots=int(1e4))
         return job
 
+    def get_prob_most_likely_solution(self):
+        pub = (self.circuit,)
+        sampler = Sampler(mode=self.backend)
+        sampler.options.default_shots=1000
+
+        if not self.simulation:
+        # Set simple error suppression/mitigation options
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
+
+        job = sampler.run([pub], shots=int(1e4))
+        counts_int = job.result()[0].data.meas.get_int_counts()
+        #print(counts_int)
+        counts_bin = job.result()[0].data.meas.get_counts()
+
+        shots = sum(counts_int.values())
+        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
+        #print(final_distribution_int)
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
+        keys = list(final_distribution_int.keys())
+        values = list(final_distribution_int.values())
+
+        over_5_percent_strings = values[np.where(keys > 0.05)]
+
+        solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions)
+        _,classical_value = solver.solve() #solving this twice, not necessarily good. runs fast though
+        percent_chance_optimal = 0
+        
+        for index in np.where(keys > 0.05):
+            value = solver.evaluate_bitstring(to_bitstring(values[index], self.num_qubits))
+            if value == classical_value:
+                percent_chance_optimal += keys[index]
+
+        print('keys:',keys)
+        print('values:', values)
+
+        return percent_chance_optimal

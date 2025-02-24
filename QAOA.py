@@ -108,6 +108,7 @@ class QAOArunner():
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
             qc.measure_all()
 
+
         elif self.qaoa_variant =='multiangle': 
             multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
             multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
@@ -188,6 +189,7 @@ class QAOArunner():
             candidate_circuit = pm.run(qc)
             self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
+
 
     def print_problem(self):
         if self.solver:
@@ -475,17 +477,19 @@ class QAOArunner():
 
         keys = list(final_distribution_int.keys())
         values = list(final_distribution_int.values())
-
-        over_5_percent_strings = values[np.where(keys > 0.05)]
+        
 
         solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions)
         _,classical_value = solver.solve() #solving this twice, not necessarily good. runs fast though
         percent_chance_optimal = 0
         
-        for index in np.where(keys > 0.05):
-            value = solver.evaluate_bitstring(to_bitstring(values[index], self.num_qubits))
+        for i in range(len(keys)):
+
+            bitstring = to_bitstring(keys[i], self.num_qubits)
+            value = solver.evaluate_bitstring(bitstring)
             if value == classical_value:
-                percent_chance_optimal += keys[index]
+                print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
+                percent_chance_optimal += values[i]
 
         print('keys:',keys)
         print('values:', values)

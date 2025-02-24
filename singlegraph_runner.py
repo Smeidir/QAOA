@@ -45,7 +45,7 @@ def parallell_runner(parameters, graph,name):
     'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : bitstring, 'classic_value': value }
+        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params}
 
 
 if ray.is_initialized():

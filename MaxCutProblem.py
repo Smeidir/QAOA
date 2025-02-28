@@ -214,6 +214,23 @@ class MaxCutProblem():
     
 
 
+    def get_paper_graphs(self):
+        edge_list_1 = [(1,5),(2,4),(3,4),(3,5),(4,5)]
+        edge_list_2 = [(1,4),(1,5), (2,3),(2,5),(3,5),(4,5)]
+        edge_list_3 = [(1,3),(1,4),(1,5), (2,3),(2,4),(2,5), (3,5), (4,5)]
+        graph1 = rx.PyGraph()
+        graph1.add_nodes_from(range(1, 6))
+        graph1.add_edges_from([(u-1, v-1, 1.0) for u, v in edge_list_1])
+
+        graph2 = rx.PyGraph()
+        graph2.add_nodes_from(range(1, 6))
+        graph2.add_edges_from([(u-1, v-1, 1.0) for u, v in edge_list_2])
+
+        graph3 = rx.PyGraph()
+        graph3.add_nodes_from(range(1, 6))
+        graph3.add_edges_from([(u-1, v-1, 1.0) for u, v in edge_list_3])
+
+        return [graph1, graph2, graph3]
 
 def save_graphs(): #Code for getting the graphs from public directory: https://users.cecs.anu.edu.au/~bdm/data/graphs.html
     graph_dir = 'graphs'

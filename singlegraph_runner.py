@@ -58,8 +58,25 @@ data = []
 
 name= 'F?~vw'
 
+graphs= problem.get_paper_graphs()
+names = ['DBk', 'DK{', 'D]{']
 
-graphs = problem.get_graph_by_name(name)
+graphs = list(itertools.chain.from_iterable(graphs))
+names = list(itertools.chain.from_iterable(names))
+print('Amount of graphs: ', len(graphs))
+
+combos = [settings, graphs]
+print('combos', len(combos))
+
+all_combos = list(itertools.product(*combos))
+
+
+all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
+all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
+
+
+#graphs = problem.get_graph_by_name(name)
+graphs = problem.get_paper_graphs()
 
 combos = [settings, [graphs]] 
 

@@ -61,8 +61,8 @@ name= 'F?~vw'
 graphs= problem.get_paper_graphs()
 names = ['DBk', 'DK{', 'D]{']
 
-graphs = list(itertools.chain.from_iterable(graphs))
-names = list(itertools.chain.from_iterable(names))
+#graphs = list(itertools.chain.from_iterable(graphs))
+#names = list(itertools.chain.from_iterable(names))
 print('Amount of graphs: ', len(graphs))
 
 combos = [settings, graphs]

@@ -30,7 +30,7 @@ from qiskit_optimization.algorithms import (
 from solver import Solver
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_algorithms import QAOA
-
+import matplotlib
 
 class QAOArunner():
     """
@@ -64,6 +64,7 @@ class QAOArunner():
         self.flatten = flatten
         self.verbose = verbose
         self.objective_func_vals = []
+        self.classical_objective_func_vals = []
         self.depth = depth
  
         self.fev = 0 #0 quantum function evals, yet.
@@ -189,6 +190,7 @@ class QAOArunner():
             candidate_circuit = pm.run(qc)
             self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
+        print('cost hamiltonian', cost_hamiltonian)
 
 
     def print_problem(self):
@@ -251,6 +253,7 @@ class QAOArunner():
 
     def callback_function(self, xk):
         print(f'Current solution: {xk} Current Objective value_{self.objective_func_vals[-1]}')
+        
 
     def recursive_callback(self, *xk):
         if xk[0] == 1: #started new iteration
@@ -331,6 +334,12 @@ class QAOArunner():
         self.runtimes.append(elapsed_time)
         cost = results.data.evs
         self.objective_func_vals.append(cost)
+        
+        found_solution = self.calculate_solution_internal(params)
+        self.classical_objective_func_vals.append(self.solver.evaluate_bitstring(found_solution))
+        print('Found solution classical value:', self.solver.evaluate_bitstring(found_solution), 'bitstring', found_solution, 'quantum value', cost)
+    
+
 
         return cost
 
@@ -393,6 +402,39 @@ class QAOArunner():
         #TODO: support fior å finne flere av de mest sannsynlige?
         
         pub = (self.circuit,)
+        sampler = Sampler(mode=self.backend)
+        sampler.options.default_shots=1000
+
+        if not self.simulation:
+        # Set simple error suppression/mitigation options
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
+
+        job = sampler.run([pub], shots=int(1e4))
+        counts_int = job.result()[0].data.meas.get_int_counts()
+        #print(counts_int)
+        counts_bin = job.result()[0].data.meas.get_counts()
+        shots = sum(counts_int.values())
+        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
+        #print(final_distribution_int)
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
+        keys = list(final_distribution_int.keys())
+        values = list(final_distribution_int.values())
+
+        most_likely = keys[np.argmax(np.abs(values))]
+        most_likely_bitstring = to_bitstring(most_likely,self.num_qubits)
+        most_likely_bitstring.reverse()
+        return most_likely_bitstring
+    def calculate_solution_internal(self, params): #TODO: må da finnes en lettere måte?
+        #TODO: support fior å finne flere av de mest sannsynlige?
+        
+        pub = (self.circuit,params)
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=1000
 
@@ -485,7 +527,7 @@ class QAOArunner():
         
         for i in range(len(keys)):
 
-            bitstring = to_bitstring(keys[i], self.num_qubits)
+            bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
             value = solver.evaluate_bitstring(bitstring)
             if value == classical_value:
                 print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
@@ -495,3 +537,46 @@ class QAOArunner():
         print('values:', values)
 
         return percent_chance_optimal
+    
+    def print_bitstrings(self):
+        matplotlib.rcParams.update({"font.size": 10})
+        pub = (self.circuit,)
+        sampler = Sampler(mode=self.backend)
+        sampler.options.default_shots=1000
+
+        if not self.simulation:
+        # Set simple error suppression/mitigation options
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
+
+        job = sampler.run([pub], shots=int(1e4))
+        counts_int = job.result()[0].data.meas.get_int_counts()
+        #print(counts_int)
+        counts_bin = job.result()[0].data.meas.get_counts()
+
+        shots = sum(counts_int.values())
+        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
+        _,classical_value = self.solver.solve()
+
+        final_bits = final_distribution_bin
+        values = np.abs(list(final_bits.values()))
+        #top_4_values = sorted(values, reverse=True)[:4]
+        positions = []
+        for i,bitstr in enumerate(final_bits.keys()):
+            bitstring = list(reversed([int(bit) for bit in bitstr]))
+            if self.solver.evaluate_bitstring(bitstring) == classical_value:
+                positions.append(i)
+           
+        fig = plt.figure(figsize=(11, 6))
+        ax = fig.add_subplot(1, 1, 1)
+        plt.xticks(rotation=45)
+        plt.title("Result Distribution")
+        plt.xlabel("Bitstrings (reversed)")
+        plt.ylabel("Probability")
+        ax.bar(list(final_bits.keys()), list(final_bits.values()), color="tab:grey")
+        for p in positions:
+            ax.get_children()[int(p)].set_color("tab:purple")
+        plt.show()

@@ -45,7 +45,7 @@ def parallell_runner(parameters, graph,name):
     'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params}
+        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution}
 
 
 if ray.is_initialized():
@@ -76,7 +76,7 @@ all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
 all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
 
 
-n_times = 100
+n_times = 10
 all_combos *= n_times
 
 #TODO: make dictionary

@@ -82,7 +82,7 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, k=self.k, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
+        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions,verbose=self.verbose, k=self.k, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         self.build_backend()
@@ -92,8 +92,8 @@ class QAOArunner():
         if self.qaoa_variant =='vanilla':
 
             if self.warm_start:
-                solver = Solver(self.graph, relaxed = True, restrictions=self.restrictions)
-                solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
+                
+                solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
                 initial_state = QuantumCircuit(self.num_qubits)
                 thetas = 2*np.arcsin(np.sqrt(solution_values))
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
@@ -116,8 +116,8 @@ class QAOArunner():
             multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
             qc = QuantumCircuit(self.num_qubits)
             if self.warm_start:
-                solver = Solver(self.graph, relaxed = True, restrictions=self.restrictions)
-                solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
+                
+                solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
                 thetas = 2*np.arcsin(np.sqrt(solution_values))
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     qc.ry(thetas[qubit],qubit)
@@ -148,8 +148,8 @@ class QAOArunner():
         elif self.qaoa_variant =='recursive': #TODO: Fixx this
             self.cum_fev = 0
             if self.warm_start:
-                solver = Solver(self.graph, relaxed = True, restrictions=self.restrictions)
-                solution_values,_ = solver.solve() #solving this twice, not necessarily good. runs fast though
+               
+                solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
                 initial_state = QuantumCircuit(self.num_qubits)
                 thetas = 2*np.arcsin(np.sqrt(solution_values))
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
@@ -520,15 +520,13 @@ class QAOArunner():
         keys = list(final_distribution_int.keys())
         values = list(final_distribution_int.values())
         
-
-        solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions)
-        _,classical_value = solver.solve() #solving this twice, not necessarily good. runs fast though
+        _,classical_value = self.solver.solve() #solving this twice, not necessarily good. runs fast though
         percent_chance_optimal = 0
         
         for i in range(len(keys)):
 
             bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
-            value = solver.evaluate_bitstring(bitstring)
+            value = self.solver.evaluate_bitstring(bitstring)
             if value == classical_value:
                 print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
                 percent_chance_optimal += values[i]

@@ -42,7 +42,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1):
+                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, vertexcover = True):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -66,6 +66,7 @@ class QAOArunner():
         self.objective_func_vals = []
         self.classical_objective_func_vals = []
         self.depth = depth
+        self.vertexcover = vertexcover
  
         self.fev = 0 #0 quantum function evals, yet.
 
@@ -81,8 +82,8 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, k=self.k) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
-        cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp()))
+        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions, k=self.k, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
+        cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         self.build_backend()
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
@@ -301,7 +302,7 @@ class QAOArunner():
             args= (self.circuit, self.cost_hamiltonian, estimator),
             method = self.optimizer,
             tol = 1e-2,
-            options={'disp': False, 'maxiter': 10000},
+            options={'disp': False, 'maxiter': 5000},
             callback= callback_function)
                  
             self.final_params = result.x

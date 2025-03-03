@@ -76,7 +76,7 @@ all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
 all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
 
 
-n_times = 10
+n_times = 100
 all_combos *= n_times
 
 #TODO: make dictionary
@@ -112,7 +112,7 @@ print(f'Done with Parameters: {settings} at time: {time.time()}')
 
 
 df = pd.DataFrame(data)
-df.to_csv(f'results_singlegraph_{parameter_string}.csv')
+df.to_csv(f'results_papergraph_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"

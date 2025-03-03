@@ -190,7 +190,6 @@ class QAOArunner():
             candidate_circuit = pm.run(qc)
             self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
-        print('cost hamiltonian', cost_hamiltonian)
 
 
     def print_problem(self):

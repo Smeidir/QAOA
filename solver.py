@@ -29,48 +29,80 @@ class Solver():
     TODO: Add support for max k-cut
     """
     
-    def __init__(self, graph, relaxed = False, restrictions=False, k=2):
+    def __init__(self, graph, relaxed = False, restrictions=False, k=2, vertexcover = False):
 
         """
         Initializes the model with the given problem, but does not solve.
         If relaxed is set to true it changes the behaviour when solve is called. it will then find a local optima, 
         as cplex cannot handle non-convex continous variables.
         """
-        self.graph = graph
-        self.model = Model(name="MaxCut")
-        if k> 2:
-            self.model = Model(name="Max-K-Cut")
-        self.relaxed = relaxed
+        self.vertexcover =vertexcover
+        if vertexcover:
+            self.graph = graph
+            self.model = Model(name="VertexCover")
+            self.relaxed = relaxed
+            if relaxed: 
+                raise NotImplementedError('relaxed for vertexcover not implemented.')
+                self.variables = self.model.continuous_var_list(var_multiplier*len(self.graph),lb=0,ub=1, name='x')
+                self.model.parameters.optimalitytarget =2 #local minima
+            else:
+                self.variables = self.model.binary_var_list(len(self.graph), name='x')
 
-        var_multiplier = 1 if k==2 else k
+            objective = 0
 
-        if relaxed: 
-            self.variables = self.model.continuous_var_list(var_multiplier*len(self.graph),lb=0,ub=1, name='x')
-            self.model.parameters.optimalitytarget =2 #local minima
+            #for edge in graph.edges:
+            B = 1
+            A = 1
+            for var in self.variables:
+                objective += B*var
+
+
+            for (i,j) in self.graph.edge_list(): 
+                objective += A*(1- self.variables[i])*( 1-self.variables[j])
+
+
+            self.objective = objective
+            self.model.objective=objective
+            self.model.minimize(self.objective)
         else:
-            self.variables = self.model.binary_var_list(var_multiplier*len(self.graph), name='x')
-        
-        objective = 0
 
-        #for edge in graph.edges:
- 
+            self.graph = graph
+            self.model = Model(name="MaxCut")
+            if k> 2:
+                self.model = Model(name="Max-K-Cut")
+            self.relaxed = relaxed
 
-        for (i,j, w) in self.graph.weighted_edge_list(): #TODO: extend to k-cut            
-            objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
-            # w is a numpy array ( becasue i use np to generate)
+            var_multiplier = 1 if k==2 else k
 
-        if restrictions:
-            for i in range(2,len(graph), 3): #adds that every ordered tuple of three qubits most have 1 positive - for testing now, partitioning later
-                self.model.add_constraint(self.variables[i-2] + self.variables[i-1] + self.variables[i] == 1)#TODO: extend to k-cut
+            if relaxed: 
+                self.variables = self.model.continuous_var_list(var_multiplier*len(self.graph),lb=0,ub=1, name='x')
+                self.model.parameters.optimalitytarget =2 #local minima
+            else:
+                self.variables = self.model.binary_var_list(var_multiplier*len(self.graph), name='x')
+            
+            objective = 0
 
-        self.objective = objective
-        self.model.objective=objective
-        self.model.maximize(self.objective)
-        
+            #for edge in graph.edges:
+    
+
+            for (i,j, w) in self.graph.weighted_edge_list(): #TODO: extend to k-cut            
+                objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
+                # w is a numpy array ( becasue i use np to generate)
+
+            if restrictions:
+                for i in range(2,len(graph), 3): #adds that every ordered tuple of three qubits most have 1 positive - for testing now, partitioning later
+                    self.model.add_constraint(self.variables[i-2] + self.variables[i-1] + self.variables[i] == 1)#TODO: extend to k-cut
+
+            self.objective = objective
+            self.model.objective=objective
+            self.model.maximize(self.objective)
+            
     def evaluate_bitstring(self, bitstring):
         """
         Evaluates the objective value for a given bitstring.
         """
+        if self.vertexcover:
+            return sum(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
             objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
@@ -84,7 +116,17 @@ class Solver():
         Solves the problem based on parameter relaxed.
         Returns bitstring, solution_value
         """
-        
+        if self.vertexcover:
+            if verbose:
+                print(f'Objective to minimize: {self.objective} for relaxed = {self.relaxed}')
+            self.model.minimize(self.objective)
+
+            solution = self.model.solve()
+            bitstring = [var.solution_value for var in self.variables]
+            if verbose:
+                print(solution.get_objective_value(), bitstring)
+            return bitstring, solution.get_objective_value()
+
         if self.relaxed:
 
                         # Define the weight matrix (from QUBO or adjacency matrix of graph)

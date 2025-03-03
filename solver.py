@@ -29,7 +29,7 @@ class Solver():
     TODO: Add support for max k-cut
     """
     
-    def __init__(self, graph, relaxed = False, restrictions=False, k=2, vertexcover = False):
+    def __init__(self, graph, relaxed = False, restrictions=False, k=2, vertexcover = False, verbose = False):
 
         """
         Initializes the model with the given problem, but does not solve.
@@ -37,6 +37,7 @@ class Solver():
         as cplex cannot handle non-convex continous variables.
         """
         self.vertexcover =vertexcover
+        self.verbose = verbose
         if vertexcover:
             self.graph = graph
             self.model = Model(name="VertexCover")
@@ -52,15 +53,15 @@ class Solver():
 
             #for edge in graph.edges:
             B = 1
-            A = 1
+            A = 2
             for var in self.variables:
                 objective += B*var
 
 
             for (i,j) in self.graph.edge_list(): 
-                objective += A*(1- self.variables[i])*( 1-self.variables[j])
+                objective += A*(1- self.variables[i])*( 1-self.variables[j]) #negative to have max problem to align with max cut
 
-
+            print('objective:', objective)
             self.objective = objective
             self.model.objective=objective
             self.model.minimize(self.objective)
@@ -102,7 +103,11 @@ class Solver():
         Evaluates the objective value for a given bitstring.
         """
         if self.vertexcover:
-            return sum(bitstring)
+            is_infeasible = 0
+            for (i, j) in self.graph.edge_list():
+                is_infeasible += (1 - bitstring[i]) * (1 - bitstring[j])
+            if is_infeasible: return 0
+            else: return np.sum(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
             objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
@@ -111,19 +116,20 @@ class Solver():
         return from_docplex_mp(self.model)
         
 
-    def solve(self, verbose = False):
+    def solve(self):
         """
         Solves the problem based on parameter relaxed.
         Returns bitstring, solution_value
         """
         if self.vertexcover:
-            if verbose:
+            if self.verbose:
                 print(f'Objective to minimize: {self.objective} for relaxed = {self.relaxed}')
             self.model.minimize(self.objective)
-
+            
             solution = self.model.solve()
+            print('optimal value found:',solution.get_objective_value() )
             bitstring = [var.solution_value for var in self.variables]
-            if verbose:
+            if self.verbose:
                 print(solution.get_objective_value(), bitstring)
             return bitstring, solution.get_objective_value()
 
@@ -164,13 +170,13 @@ class Solver():
             assignments = np.where(assignments == -1, 0, assignments)
             return assignments, self.evaluate_bitstring(assignments)
                         
-        if verbose:
+        if self.verbose:
             print(f'Objective to maximize: {self.objective} for relaxed = {self.relaxed}')
         self.model.maximize(self.objective)
 
         solution = self.model.solve()
         bitstring = [var.solution_value for var in self.variables]
-        if verbose:
+        if self.verbose:
             print(solution.get_objective_value(), bitstring)
         return bitstring, solution.get_objective_value()
 

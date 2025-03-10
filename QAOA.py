@@ -42,7 +42,8 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, vertexcover = True):
+                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, vertexcover = True,
+                 max_tol = 1e-2, max_shots = 1000, lagrangian_multiplier = 2):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -67,6 +68,9 @@ class QAOArunner():
         self.classical_objective_func_vals = []
         self.depth = depth
         self.vertexcover = vertexcover
+        self.max_tol = max_tol
+        self.max_shots = 1000
+        self.lagrangian_multiplier = 2
  
         self.fev = 0 #0 quantum function evals, yet.
 
@@ -83,10 +87,16 @@ class QAOArunner():
         """
         conv = QuadraticProgramToQubo()
         self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions,verbose=self.verbose, k=self.k, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
+        print('cst hamultonian after covnersion to qubo', conv.convert(self.solver.get_qp()))
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
+        print('ising hamiltonian:', cost_hamiltonian)
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
+       # ['IIIIZ', 'IZIII', 'IIIZI', 'IIZII', 'ZIIII', 'IZIIZ', 'ZIIIZ', 'IIZZI', 'ZIIZI', 'ZIZII', 'ZZIII']], 
+       # np.array([1.5+0.j, 1.5+0.j, 1.5+0.j, 1.5+0.j, 3.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j,
+ #0.5+0.j, 0.5+0.j, 0.5+0.j], dtype=np.complex64))]
         self.build_backend()
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
+        print(cost_hamiltonian)
         qc = None
         
         if self.qaoa_variant =='vanilla':
@@ -288,7 +298,7 @@ class QAOArunner():
         else:
             
             estimator = Estimator(mode=self.backend)
-            estimator.options.default_shots = 1000
+            estimator.options.default_shots = 4000
             if not self.simulation:
                     # Set simple error suppression/mitigation options
                     estimator.options.dynamical_decoupling.enable = True
@@ -301,7 +311,7 @@ class QAOArunner():
             init_params,
             args= (self.circuit, self.cost_hamiltonian, estimator),
             method = self.optimizer,
-            tol = 1e-2,
+            tol = 1e-8,
             options={'disp': False, 'maxiter': 5000},
             callback= callback_function)
                  
@@ -335,9 +345,9 @@ class QAOArunner():
         cost = results.data.evs
         self.objective_func_vals.append(cost)
         
-        found_solution = self.calculate_solution_internal(params)
-        self.classical_objective_func_vals.append(self.solver.evaluate_bitstring(found_solution))
-        print('Found solution classical value:', self.solver.evaluate_bitstring(found_solution), 'bitstring', found_solution, 'quantum value', cost)
+     #   found_solution = self.calculate_solution_internal(params)
+     #   self.classical_objective_func_vals.append(self.solver.evaluate_bitstring(found_solution))
+     #   print('Found solution classical value:', self.solver.evaluate_bitstring(found_solution), 'bitstring', found_solution, 'quantum value', cost)
     
 
 
@@ -577,4 +587,8 @@ class QAOArunner():
         ax.bar(list(final_bits.keys()), list(final_bits.values()), color="tab:grey")
         for p in positions:
             ax.get_children()[int(p)].set_color("tab:purple")
+        for i, bitstr in enumerate(final_bits.keys()):
+            bitstring = list(reversed([int(bit) for bit in bitstr]))
+            value = self.solver.evaluate_bitstring(bitstring)
+            ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()

@@ -101,7 +101,7 @@ parameter_string = parameter_string[0:-1]
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
 
-result_ids, unfinished = ray.wait(futures, timeout = 60*60*16, num_returns = len(all_combos))
+result_ids, unfinished = ray.wait(futures, timeout = 60*60*16*3, num_returns = len(all_combos))
 for task in unfinished:
     ray.cancel(task)
 
@@ -117,8 +117,8 @@ df.to_csv(f'results_papergraph_{parameter_string}.csv')
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
-body = f'Solstorm run -singlegraph -  {parameter_string}'
-attachment = f'results_singlegraph_{parameter_string}.csv'
+body = f'Solstorm run -papergraph -  {parameter_string}'
+attachment = f'results_papergraph_{parameter_string}.csv'
 
 yag.send( subject=subject, contents=body, attachments=attachment)
 print("Email sent successfully!")

@@ -4,7 +4,7 @@ from rustworkx import NoEdgeBetweenNodes
 import rustworkx as rx
 from rustworkx.visualization import mpl_draw as draw_graph
 from load_data import load_graph_from_csv
-from mystic.solvers import fmin, fmin_powell
+#from mystic.solvers import fmin, fmin_powell
 import numpy as np
 from MaxCutProblem import MaxCutProblem
 from qiskit_optimization.translators import from_docplex_mp, to_ising
@@ -19,8 +19,8 @@ from qiskit_optimization.algorithms import (
 
 #TODO: move the test cases here into a more logical place in the code
 import time
-import mystic
-import cvxpy as cp
+#import mystic
+#import cvxpy as cp
 
 class Solver():
     """
@@ -105,8 +105,8 @@ class Solver():
         if self.vertexcover:
             is_infeasible = 0
             for (i, j) in self.graph.edge_list():
-                is_infeasible += (1 - bitstring[i]) * (1 - bitstring[j])
-            if is_infeasible: return 0
+                is_infeasible += 2*(1 - bitstring[i]) * (1 - bitstring[j])
+            if is_infeasible: return (is_infeasible + np.sum(bitstring))
             else: return np.sum(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():

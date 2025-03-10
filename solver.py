@@ -29,7 +29,7 @@ class Solver():
     TODO: Add support for max k-cut
     """
     
-    def __init__(self, graph, relaxed = False, restrictions=False, k=2, vertexcover = False, verbose = False):
+    def __init__(self, graph, relaxed = False, restrictions=False, k=2, vertexcover = False, verbose = False, lagrangian = 2):
 
         """
         Initializes the model with the given problem, but does not solve.
@@ -52,14 +52,14 @@ class Solver():
             objective = 0
 
             #for edge in graph.edges:
-            B = 1
-            A = 2
+            self.B = 1
+            self.A = lagrangian
             for var in self.variables:
-                objective += B*var
+                objective += self.B*var
 
 
             for (i,j) in self.graph.edge_list(): 
-                objective += A*(1- self.variables[i])*( 1-self.variables[j]) #negative to have max problem to align with max cut
+                objective += self.A*(1- self.variables[i])*( 1-self.variables[j]) #negative to have max problem to align with max cut
 
             print('objective:', objective)
             self.objective = objective
@@ -105,9 +105,9 @@ class Solver():
         if self.vertexcover:
             is_infeasible = 0
             for (i, j) in self.graph.edge_list():
-                is_infeasible += 2*(1 - bitstring[i]) * (1 - bitstring[j])
-            if is_infeasible: return (is_infeasible + np.sum(bitstring))
-            else: return np.sum(bitstring)
+                is_infeasible += self.A*(1 - bitstring[i]) * (1 - bitstring[j])
+            if is_infeasible: return (is_infeasible + self.B*np.sum(bitstring))
+            else: return self.B* np.sum(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
             objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])

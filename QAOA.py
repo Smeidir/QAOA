@@ -43,7 +43,7 @@ class QAOArunner():
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
                  warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, vertexcover = True,
-                 max_tol = 1e-2, max_shots = 1000, lagrangian_multiplier = 2):
+                 max_tol = 1e-8, amount_shots = 10000, lagrangian_multiplier = 2):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -69,8 +69,8 @@ class QAOArunner():
         self.depth = depth
         self.vertexcover = vertexcover
         self.max_tol = max_tol
-        self.max_shots = 1000
-        self.lagrangian_multiplier = 2
+        self.amount_shots = amount_shots
+        self.lagrangian_multiplier = lagrangian_multiplier
  
         self.fev = 0 #0 quantum function evals, yet.
 
@@ -86,7 +86,7 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions,verbose=self.verbose, k=self.k, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
+        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions,verbose=self.verbose, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
         print('cst hamultonian after covnersion to qubo', conv.convert(self.solver.get_qp()))
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
         print('ising hamiltonian:', cost_hamiltonian)
@@ -298,7 +298,7 @@ class QAOArunner():
         else:
             
             estimator = Estimator(mode=self.backend)
-            estimator.options.default_shots = 4000
+            estimator.options.default_shots = self.amount_shots
             if not self.simulation:
                     # Set simple error suppression/mitigation options
                     estimator.options.dynamical_decoupling.enable = True
@@ -311,7 +311,7 @@ class QAOArunner():
             init_params,
             args= (self.circuit, self.cost_hamiltonian, estimator),
             method = self.optimizer,
-            tol = 1e-8,
+            tol = self.max_tol,
             options={'disp': False, 'maxiter': 5000},
             callback= callback_function)
                  
@@ -379,7 +379,7 @@ class QAOArunner():
         """
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=1000
+        sampler.options.default_shots=self.amount_shots
 
         if not self.simulation:
                 # Set simple error suppression/mitigation options
@@ -413,7 +413,7 @@ class QAOArunner():
         
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=1000
+        sampler.options.default_shots=self.amount_shots
 
         if not self.simulation:
         # Set simple error suppression/mitigation options
@@ -446,7 +446,7 @@ class QAOArunner():
         
         pub = (self.circuit,params)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=1000
+        sampler.options.default_shots=self.amount_shots
 
         if not self.simulation:
         # Set simple error suppression/mitigation options
@@ -490,7 +490,7 @@ class QAOArunner():
 
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=1000
+        sampler.options.default_shots=self.amount_shots
 
         if not self.simulation:
         # Set simple error suppression/mitigation options
@@ -505,7 +505,7 @@ class QAOArunner():
     def get_prob_most_likely_solution(self):
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=1000
+        sampler.options.default_shots=self.amount_shots
 
         if not self.simulation:
         # Set simple error suppression/mitigation options
@@ -550,7 +550,7 @@ class QAOArunner():
         matplotlib.rcParams.update({"font.size": 10})
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=1000
+        sampler.options.default_shots=self.amount_shots
 
         if not self.simulation:
         # Set simple error suppression/mitigation options

@@ -33,7 +33,8 @@ def parallell_runner(parameters, graph,name):
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
     print(f"Processing task {parameters}, {name} at time {date_time}")
     qaoa = QAOArunner(graph, simulation=True, param_initialization=parameters[0], optimizer =  parameters[1], 
-    qaoa_variant=parameters[2], warm_start=parameters[3], errors = parameters[4],depth = parameters[5])
+    qaoa_variant=parameters[2], warm_start=parameters[3], errors = parameters[4],depth = parameters[5], lagrangian_multiplier=parameters[6],
+    amount_shots=parameters[7], max_tol=parameters[8])
     qaoa.build_circuit()
     qaoa.run()
     solver = Solver(graph)
@@ -43,10 +44,10 @@ def parallell_runner(parameters, graph,name):
     print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp} seconds.")
     return {'param_initialization': parameters[0], 'optimizer': parameters[1],'qaoa_variant': parameters[2], 'warm_start' : parameters[3], 
     'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
-        'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
+         'lagrangian_multiplier': parameters[6],'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution()}
-
+        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution(),
+        'lagrangian_multiplier':parameters[6], 'amount_shots': parameters[7], 'max_tol': parameters[8],}
 
 if ray.is_initialized():
     ray.shutdown()

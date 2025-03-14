@@ -114,6 +114,7 @@ class Solver():
         return objective_value
     def get_qp(self):
         return from_docplex_mp(self.model)
+
         
 
     def solve(self):
@@ -192,43 +193,6 @@ class Solver():
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
         rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
 
-#mystic is legacy for testing - unless we need it later.
-
-def max_cut_objective(x, graph):
-    objective = 0
-    for i in range(len(x)):
-        for j in range(i + 1, len(x)):
-            if graph.has_edge(i, j):
-                objective += x[i] + x[j] - 2 * x[i] * x[j]
-    return -objective  # Minimize the negative to maximize the original objective
-def solve_with_mystic(graph):
-    x0 = [0.0] * len(graph)  # Initial guess
-    bounds = [(0,1) for _ in range(len(graph))]
-    
-    #monitor = VerboseMonitor(100)
-
-    result = fmin_powell(max_cut_objective, x0, args=(graph,), bounds=bounds,maxiter=1000, ftol=1e-6, verbose=False)
-    
-    solution_values = result
-    objective_value = -max_cut_objective(solution_values, graph)
-    return solution_values, objective_value
-
-#bitstring, objective_value = solve_with_mystic(load_graph_from_csv('data/11_nodes_links_scand.csv'))
-#print(f'Objective value: {objective_value:.6f}, Bitstring: {[f"{bit:.4f}" for bit in bitstring]}')
-def is_almost_integer_solution(solution, tolerance=0.1):
-    
-    conclusion = all(abs(x - round(x)) < tolerance for x in solution)
-    #if not conclusion:
-     #   print('Not integers:' ,solution)
-    return conclusion
-
-num_graphs = 100
-sizes = range(10, 51)
-mystic_better_count = 0
-integer_solution_count = 0
-results = []
-
-problem = MaxCutProblem()
 
 def format_qaoa_samples(samples, max_len: int = 10):
     qaoa_res = []
@@ -240,124 +204,3 @@ def format_qaoa_samples(samples, max_len: int = 10):
     return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
 
-if __name__ == "__main__":
-    graphs, names = problem.get_test_graphs(9)
-    for graph in graphs:
-        solver = Solver(graph, True)
-        solver.solve(True)
-
-
-
-
-"""   
-    solver = Solver(problem.get_graph(6, True, True), True)
-    solver.solve(True)
-
-    backend = GenericBackendV2(num_qubits=11)
-    qaoa_mes = QAOA(sampler=BackendSampler(backend=backend), optimizer=COBYLA(), initial_point=[0.0,0.0])
-    exact_mes = NumPyMinimumEigensolver()
-    exact = MinimumEigenOptimizer(exact_mes) 
-
-
-    graph = Solver(load_graph_from_csv('data/11_nodes_links_scand.csv'))
-
-    print('Cplex solver:', graph.solve()[1])
-
-    print(graph.get_qp().prettyprint())
-    conv = QuadraticProgramToQubo()
-
-    print("QUBO:", conv.convert(graph.get_qp()))
-    print("ising:", to_ising(conv.convert(graph.get_qp())))
-    ising = to_ising(conv.convert(graph.get_qp()))
-
-    print("ising" , ising)
-    print("len ", [str(x) for x in ising[0].paulis])
-
-
-    exact_result = exact.solve(conv.convert(graph.get_qp()))
-
-    qaoa = MinimumEigenOptimizer(qaoa_mes) 
-    #print("Exact:",exact_result.prettyprint())
-
-    solution = qaoa.solve(graph.get_qp())
-    print("QAOA:", format_qaoa_samples(solution.samples))
-
-    #QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
-    #service = QiskitRuntimeService(channel='ibm_quantum')
-    #backend = service.least_busy(min_num_qubits=127)
-    #print(backend)
-    qaoa_mes = QAOA(sampler=BackendSampler(backend=backend), optimizer=COBYLA(), initial_point=[0.0,0.0])
-    qaoa = MinimumEigenOptimizer(qaoa_mes) 
-
-    rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=7, min_num_vars_optimizer=exact)
-    rqaoa_result = rqaoa.solve(graph.get_qp())
-    print("RQAOA:" ,rqaoa_result.prettyprint())
-""""""
-
-
-for _ in range(num_graphs):
-    print("1 done")
-    size = random.choice(sizes)
-    graph = problem.get_graph(size, create_random=True)
-    
-    solver = Solver(graph, relaxed=False)
-    cplex_bitstring, cplex_objective = solver.solve()
-    
-    mystic_bitstring, mystic_objective = solve_with_mystic(graph)
-    
-    if mystic_objective > cplex_objective:
-        mystic_better_count += 1
-    
-    if is_almost_integer_solution(mystic_bitstring):
-        integer_solution_count += 1
-    
-    results.append((size, cplex_objective, mystic_objective))
-
-# Plot results
-sizes, cplex_results, mystic_results = zip(*results)
-plt.figure(figsize=(12, 6))
-plt.plot(sizes, cplex_results, 'o', label='CPLEX')
-plt.plot(sizes, mystic_results, 'x', label='Mystic')
-plt.xlabel('Graph Size')
-plt.ylabel('Objective Value')
-plt.legend()
-plt.title('Comparison of CPLEX and Mystic Solutions')
-plt.show()
-
-print(f'Mystic had a better solution {mystic_better_count} times out of {num_graphs}')
-print(f'Mystic solution was only integers {integer_solution_count} times out of {num_graphs}')
-
-
-sizes = [4,4,7,14,21,28]
-runtimes = []
-plot_sizes = [number for number in sizes for i in range(10)]
-
-
-for size in sizes:
-    runtimes2 = []
-    for i in range(100):
-        graph = problem.get_graph(size, create_random=True, random_weights=True)
-        solver = Solver(graph, relaxed=False)
-        
-        start_time = time.time()
-        solver.solve()
-        end_time = time.time()
-    
-        runtime = end_time - start_time
-        runtimes2.append(runtime)
-        #print(f'Size: {size}, Runtime: {runtime:.6f} seconds')
-
-    runtimes.append(np.mean(runtimes2))
-    print("Done with ", size)
-runtimes = runtimes[1:]
-sizes = sizes[1:]
-# Plot results
-plt.figure(figsize=(12, 6))
-plt.plot(sizes, runtimes, 'o-', label='CPLEX Runtime')
-print(sizes)
-print([runtime.item() for runtime in runtimes])
-plt.xlabel('Graph Size')
-plt.ylabel('Runtime (seconds)')
-plt.legend()
-plt.title('CPLEX Solver Runtime vs Graph Size')
-plt.show()"""

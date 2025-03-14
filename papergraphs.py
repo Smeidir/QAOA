@@ -59,7 +59,7 @@ data = []
 
 name= 'F?~vw'
 
-graphs= [problem.get_paper_graphs()]
+graphs= [problem.get_complete_graphs(5,7,10)]
 print(graphs)
 names = ['DBk', 'DK{', 'D]{']
 

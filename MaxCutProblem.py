@@ -39,6 +39,11 @@ class MaxCutProblem():
             graph.add_edges_from(edge_list)
             
             return graph
+        
+    def get_complete_graphs(self,sizes):
+
+        return [rx.generators.complete_graph(size) for size in sizes]
+    
     def get_test_graphs(self, n = 5):
         graph_dir = 'graphs'
         graphs = []

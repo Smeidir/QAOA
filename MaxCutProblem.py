@@ -107,6 +107,31 @@ class MaxCutProblem():
         plt.tight_layout()
         plt.show()
 
+
+    def get_erdos_renyi_graphs(self,sizes):
+        seed = 40
+
+        rng = np.random.default_rng(seed)
+        graphs = []
+
+        for size in sizes:
+            graph_sparse = rx.undirected_gnp_random_graph(size, 0.35, seed=seed)
+            edge_list_sparse = graph_sparse.edge_list()
+            edge_list_sparse = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_sparse]
+            graph_sparse.clear_edges()
+            graph_sparse.add_edges_from(edge_list_sparse)
+            graphs.append(graph_sparse)
+
+            graph_dense = rx.undirected_gnp_random_graph(size, 0.7, seed=seed)
+
+            edge_list_dense = graph_dense.edge_list()
+            edge_list_dense = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_dense]
+            graph_dense.clear_edges()
+            graph_dense.add_edges_from(edge_list_dense)
+            graphs.append(graph_dense)
+        return graphs
+
+
     def draw_given_graphs(self, graph_names):
 
         graphs, names = self.get_test_graphs()
@@ -309,3 +334,19 @@ def save_graphs(): #Code for getting the graphs from public directory: https://u
                 with open(os.path.join(graph_dir, f'saved_{filename}'), 'w') as save_file:
                     save_file.write('\n'.join(graphs_to_save))
 
+
+if __name__ == "__main__":
+    problem = MaxCutProblem()
+    sizes = [5, 7, 10]
+    erdos_renyi_graphs = problem.get_erdos_renyi_graphs(sizes)
+
+    fig, axes = plt.subplots(len(sizes), 2, figsize=(12, 6 * len(sizes)))
+    axes = axes.flatten()
+
+    for i, graph in enumerate(erdos_renyi_graphs):
+        ax = axes[i]
+        draw_graph(graph, ax=ax)
+        ax.set_title(f"Erdős-Rényi Graph {i+1}")
+
+    plt.tight_layout()
+    plt.show()

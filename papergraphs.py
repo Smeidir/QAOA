@@ -59,9 +59,9 @@ data = []
 
 name= 'F?~vw'
 
-graphs= [problem.get_complete_graphs([5,7,10])]
-print(graphs)
-names = ['DBk', 'DK{', 'D]{']
+graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
+
+names = [f'SparseER{i+1}' if i % 2 == 0 else f'DenseER{i//2+1}' for i in range(len(graphs))]
 
 graphs = list(itertools.chain.from_iterable(graphs))
 names = list(itertools.chain.from_iterable(names))
@@ -71,7 +71,6 @@ combos = [settings, graphs]
 print('combos', len(combos))
 
 all_combos = list(itertools.product(*combos))
-
 
 all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
 all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]

@@ -42,8 +42,8 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, errors = True, flatten = True, verbose = False, depth = 1, vertexcover = True,
-                 max_tol = 1e-8, amount_shots = 10000, lagrangian_multiplier = 2):
+                 warm_start=False,restrictions=False, k=2, errors = False, flatten = True, verbose = False, depth = 1, vertexcover = True,
+                 max_tol = 1e-8, amount_shots = 10000, lagrangian_multiplier = 2, error_correction = True):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -71,6 +71,7 @@ class QAOArunner():
         self.max_tol = max_tol
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
+        self.error_correction = error_correction
  
         self.fev = 0 #0 quantum function evals, yet.
 
@@ -105,7 +106,7 @@ class QAOArunner():
                 
                 solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
                 initial_state = QuantumCircuit(self.num_qubits)
-                thetas = 2*np.arcsin(np.sqrt(solution_values))
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in solution_values]
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     initial_state.ry(thetas[qubit],qubit)
                 mixer_state = QuantumCircuit(self.num_qubits)
@@ -128,7 +129,7 @@ class QAOArunner():
             if self.warm_start:
                 
                 solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
-                thetas = 2*np.arcsin(np.sqrt(solution_values))
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in solution_values]
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     qc.ry(thetas[qubit],qubit)
 
@@ -299,7 +300,7 @@ class QAOArunner():
             
             estimator = Estimator(mode=self.backend)
             estimator.options.default_shots = self.amount_shots
-            if not self.simulation:
+            if self.errors and self.error_correction:
                     # Set simple error suppression/mitigation options
                     estimator.options.dynamical_decoupling.enable = True
                     estimator.options.dynamical_decoupling.sequence_type = "XY4"
@@ -381,7 +382,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if not self.simulation:
+        if self.errors and self.error_correction:
                 # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -415,7 +416,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if not self.simulation:
+        if self.errors and self.error_correction:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -448,7 +449,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if not self.simulation:
+        if self.errors and self.error_correction:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -492,7 +493,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if not self.simulation:
+        if self.errors and self.error_correction:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -507,7 +508,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if not self.simulation:
+        if self.errors and self.error_correction:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -552,7 +553,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if not self.simulation:
+        if self.errors and self.error_correction:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"

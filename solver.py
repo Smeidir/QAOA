@@ -16,11 +16,15 @@ from qiskit_optimization.algorithms import (
     MinimumEigenOptimizer,
     RecursiveMinimumEigenOptimizer,
 )
-
+import networkx as nx
 #TODO: move the test cases here into a more logical place in the code
 import time
-#import mystic
-#import cvxpy as cp
+import mystic
+from mystic.solvers import fmin
+from mystic.penalty import quadratic_inequality
+from mystic.constraints import as_constraint
+
+import cvxpy as cp
 
 class Solver():
     """
@@ -43,8 +47,7 @@ class Solver():
             self.model = Model(name="VertexCover")
             self.relaxed = relaxed
             if relaxed: 
-                raise NotImplementedError('relaxed for vertexcover not implemented.')
-                self.variables = self.model.continuous_var_list(var_multiplier*len(self.graph),lb=0,ub=1, name='x')
+                self.variables = self.model.continuous_var_list(len(self.graph),lb=0,ub=1, name='x')
                 self.model.parameters.optimalitytarget =2 #local minima
             else:
                 self.variables = self.model.binary_var_list(len(self.graph), name='x')
@@ -58,8 +61,10 @@ class Solver():
                 objective += self.B*var
 
 
+            #for (i,j) in self.graph.edge_list(): 
+            #    objective += self.A*(1- self.variables[i])*( 1-self.variables[j]) #negative to have max problem to align with max cut
             for (i,j) in self.graph.edge_list(): 
-                objective += self.A*(1- self.variables[i])*( 1-self.variables[j]) #negative to have max problem to align with max cut
+                self.model.add_constraint(self.variables[i]+self.variables[j] >= 1)
 
             print('objective:', objective)
             self.objective = objective
@@ -204,3 +209,16 @@ def format_qaoa_samples(samples, max_len: int = 10):
     return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
 
+if __name__ == "__main__":
+    # Example usage for a minimum vertex cover problem
+    # Create a graph
+    # Add edges to form a cycle
+    # Generate a random 3-regular graph with 9 nodes
+    graph = nx.generators.random_regular_graph(3, 10, seed=42)
+    # Convert the NetworkX graph to a PyGraph (rustworkx)
+    pygraph = rx.networkx_converter(graph)
+    # Create a Gurobi model
+    solver = Solver(pygraph, vertexcover=True, verbose=True)
+    bitstring, objective_value = solver.solve()
+    print("Solution:", bitstring)
+    print("Objective value:", objective_value)

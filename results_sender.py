@@ -2,8 +2,8 @@ import pandas as pd
 import yagmail
 
 df = pd.read_csv('results_underway.csv', on_bad_lines="skip")
-df = df.tail(2000)
-df.to_csv(f'results_s_.csv')
+chunk_size = 1000
+num_chunks = 5
 
 with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
@@ -11,9 +11,14 @@ with open("email_credentials.txt", "r") as f:
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
-body = f'Solstorm run -results underway'
-attachment = f'results_s_.csv'
 
-yag.send( subject=subject, contents=body, attachments=attachment)
-print("Email sent successfully!")
+for i in range(num_chunks):
+    chunk = df.iloc[i * chunk_size:(i + 1) * chunk_size]
+    chunk_file = f'results_chunk_{i + 1}.csv'
+    chunk.to_csv(chunk_file, index=False)
+    
+    body = f'Solstorm run - results chunk {i + 1}'
+    yag.send(subject=subject, contents=body, attachments=chunk_file)
+    print(f"Email {i + 1} sent successfully with {chunk_file}!")
+
 yag.close()

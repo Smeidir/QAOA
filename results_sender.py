@@ -14,13 +14,24 @@ subject = "Data from Python Script"
 
 df = df.iloc[-(chunk_size * num_chunks):]  # Take only the last chunk_size * num_chunks rows
 
+import yagmail.error
+
 for i in range(num_chunks):
-    chunk = df.iloc[i * chunk_size:(i + 1) * chunk_size]
-    chunk_file = f'results_chunk_{i + 1}.csv'
-    chunk.to_csv(chunk_file, index=False)
-    
-    body = f'Solstorm run - results chunk {i + 1}'
-    yag.send(subject=subject, contents=body, attachments=chunk_file)
-    print(f"Email {i + 1} sent successfully with {chunk_file}!")
+    try:
+        chunk = df.iloc[i * chunk_size:(i + 1) * chunk_size]
+        chunk_file = f'results_chunk_{i + 1}.csv'
+        chunk.to_csv(chunk_file, index=False)
+        
+        body = f'Solstorm run - results chunk {i + 1}'
+        yag.send(subject=subject, contents=body, attachments=chunk_file)
+        print(f"Email {i + 1} sent successfully with {chunk_file}!")
+    except yagmail.error.SMTPAuthenticationError as e:
+        print(f"Failed to send email {i + 1} due to authentication error: {e}")
+    except yagmail.error.SMTPDataError as e:
+        print(f"Failed to send email {i + 1} due to data error: {e}")
+    except yagmail.error.SMTPServerDisconnected as e:
+        print(f"Failed to send email {i + 1} due to server disconnection: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred while sending email {i + 1}: {e}")
 
 yag.close()

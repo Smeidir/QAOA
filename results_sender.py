@@ -2,6 +2,7 @@ import pandas as pd
 import yagmail
 
 df = pd.DataFrame('results_underway.csv')
+df = df.tail(24000)
 df.to_csv(f'results_s_.csv')
 
 with open("email_credentials.txt", "r") as f:

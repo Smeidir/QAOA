@@ -21,9 +21,9 @@ import networkx as nx
 
 
 
-with open("test_settings.txt", "r") as f:
-    settings = ast.literal_eval(f.read().strip())
-
+#with open("test_settings.txt", "r") as f:
+#    settings = ast.literal_eval(f.read().strip())
+settings = [{'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': False, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': False}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': False, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': True}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': True, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': False}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': True, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': True}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'multiangle', 'warm_start': False, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': False}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'multiangle', 'warm_start': False, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': True}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'multiangle', 'warm_start': True, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': False}, {'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'multiangle', 'warm_start': True, 'errors': False, 'depth': 12, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'error_mitigation': True}]
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph, name):
  
@@ -98,8 +98,12 @@ keys_with_differences = []
 keys = settings[0].keys()
 for key in keys:
     values = {d[key] for d in settings}
+    flag= False
     if len(values) > 1:  # If there are multiple unique values for this key
         keys_with_differences.append(key)
+        flag=True
+    if flag:
+        keys_with_differences.append(values)
 
 parameter_set = keys_with_differences
 print('parameter set', parameter_set)

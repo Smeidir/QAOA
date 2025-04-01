@@ -21,15 +21,14 @@ import networkx as nx
 
 
 
-#with open("test_settings.txt", "r") as f:
-#    settings = ast.literal_eval(f.read().strip())
-
-settings = [{'depth' : 1, 'param_initialization' : 'gaussian'},
-            {'depth': 2, 'param_initialization' : 'uniform'}]
+with open("test_settings.txt", "r") as f:
+    settings = ast.literal_eval(f.read().strip())
 
 @ray.remote(num_cpus = 4)
-def parallell_runner(parameters, graph):
-    name = nx.to_graph6_bytes(graph).decode('utf-8').strip()
+def parallell_runner(parameters, graph, name):
+ 
+  
+     
     timestamp = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
     print(f"Processing task {parameters}, {name} at time {date_time}")
@@ -57,15 +56,32 @@ ray.init(log_to_driver=True)
 graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
-print('Amount of graphs: ', len(graphs))
 
-combos = [settings, graphs] #settings should be a list of dictionaries . Shoudl pass a (dict, graph) tuple
-print('combos', len(combos))
+combos = [settings, graphs] #settings should be a list of dictionaries .
+
+
+# Convert graphs to networkx graphs and generate graph6 strings
+graph6_strings = []
+for graph in graphs: #TODO: write graph6 decoder
+
+    graph = nx.Graph(list(graph.edge_list())) 
+    graph6_string = nx.to_graph6_bytes(graph).decode('utf-8').strip()
+    graph6_strings.append(graph6_string)
+
+
 
 all_combos = list(itertools.product(*combos))
 
-n_times = 100
+combos_with_name = []
+for liste in all_combos:
+    liste2 = liste +  (graph6_strings[graphs.index(liste[1])],) #tuples are immutable
+    combos_with_name.append(liste2)
+all_combos = combos_with_name
+
+n_times = 50
 all_combos *= n_times
+
+
 
 #TODO: make dictionary
 print('len all_combos',len(all_combos))
@@ -78,24 +94,24 @@ parameter_set = []
 
 # Find keys with different values across the dictionaries in settings
 keys_with_differences = []
-if settings:
-    keys = settings[0].keys()
-    for key in keys:
-        values = {d[key] for d in settings}
-        if len(values) > 1:  # If there are multiple unique values for this key
-            keys_with_differences.append(key)
+
+keys = settings[0].keys()
+for key in keys:
+    values = {d[key] for d in settings}
+    if len(values) > 1:  # If there are multiple unique values for this key
+        keys_with_differences.append(key)
 
 parameter_set = keys_with_differences
-print(parameter_set)
+print('parameter set', parameter_set)
 
 
 parameter_string = [str(x) + "_" for x in parameter_set]
 parameter_string = "".join(parameter_string)
 parameter_string = parameter_string[0:-1]
 
-print(parameter_string)
+print('parameter string', parameter_string)
 
-futures = [parallell_runner.remote(parameters, graph) for parameters, graph in all_combos]
+futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph,name in all_combos]
 
 result_ids, unfinished = ray.wait(futures, timeout = 60*60*16*3, num_returns = len(all_combos))
 for task in unfinished:

@@ -1,36 +1,35 @@
 import time
-from matplotlib import pyplot as plt
-from qiskit.quantum_info import SparsePauliOp
-from qiskit.providers.fake_provider import GenericBackendV2
-from qiskit_ibm_runtime.fake_provider import FakeBrisbane
-from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit.circuit.library import QAOAAnsatz
-import params
+
+import matplotlib
 import numpy as np
-from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
-from scipy.optimize import minimize
-from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
-from qiskit_algorithms.optimizers.scipy_optimizer import SciPyOptimizer
+import rustworkx as rx
+from matplotlib import pyplot as plt
+from qiskit import QuantumCircuit
+from qiskit.circuit import Parameter
+from qiskit.circuit.library import HGate, QAOAAnsatz
+from qiskit.primitives import BackendSampler
+from qiskit.providers.fake_provider import GenericBackendV2
+from qiskit.quantum_info import Operator, SparsePauliOp
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer import AerSimulator, StatevectorSimulator
 from qiskit_aer.noise import NoiseModel
-from qiskit_ibm_runtime import SamplerV2 as Sampler
-from qiskit.primitives import BackendSampler
-from qiskit import QuantumCircuit
-from qiskit.circuit.library import HGate
-from qiskit.circuit import Parameter
-from qiskit_optimization.translators import from_docplex_mp, to_ising
-from qiskit.primitives import BackendSampler
-import rustworkx as rx
-from qiskit_optimization.converters import QuadraticProgramToQubo
-from qiskit.quantum_info import Operator
-from qiskit_optimization.algorithms import MinimumEigenOptimizer
-from qiskit_optimization.algorithms import (
-    MinimumEigenOptimizer,
-    RecursiveMinimumEigenOptimizer)
-from solver import Solver
-from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_algorithms import QAOA
-import matplotlib
+from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
+from qiskit_algorithms.optimizers.scipy_optimizer import SciPyOptimizer
+from qiskit_ibm_runtime import EstimatorV2 as Estimator
+from qiskit_ibm_runtime import QiskitRuntimeService
+from qiskit_ibm_runtime import SamplerV2 as Sampler
+from qiskit_ibm_runtime import Session
+from qiskit_ibm_runtime.fake_provider import FakeBrisbane
+from qiskit_optimization.algorithms import (MinimumEigenOptimizer,
+                                            RecursiveMinimumEigenOptimizer)
+from qiskit_optimization.converters import QuadraticProgramToQubo
+from qiskit_optimization.translators import from_docplex_mp, to_ising
+from scipy.optimize import minimize
+
+import params
+from solver import Solver
+
 
 class QAOArunner():
     """
@@ -43,7 +42,7 @@ class QAOArunner():
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
                  warm_start=False,restrictions=False, k=2, errors = False, flatten = True, verbose = False, depth = 1, vertexcover = True,
-                 max_tol = 1e-8, amount_shots = 10000, lagrangian_multiplier = 2, error_correction = True):
+                 max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, error_mitigation = True):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -51,7 +50,7 @@ class QAOArunner():
             raise ValueError(f'Non-supported param initializer. Your param: {param_initialization} not in supported parameters:{params.supported_param_inits}.')
         if optimizer not in params.supported_optimizers:
             raise ValueError(f'Non-supported param initializer. Your param: {optimizer} not in supported parameters:{params.supported_optimizers}.')
-        
+      
         self.graph = graph
         self.simulation = simulation
         self.param_initialization = param_initialization
@@ -71,8 +70,8 @@ class QAOArunner():
         self.max_tol = max_tol
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
-        self.error_correction = error_correction
- 
+        self.error_mitigation = error_mitigation
+
         self.fev = 0 #0 quantum function evals, yet.
 
         self.num_qubits = len(self.graph.nodes())
@@ -88,16 +87,13 @@ class QAOArunner():
         """
         conv = QuadraticProgramToQubo()
         self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions,verbose=self.verbose, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
-        print('cst hamultonian after covnersion to qubo', conv.convert(self.solver.get_qp()))
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
-        print('ising hamiltonian:', cost_hamiltonian)
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
        # ['IIIIZ', 'IZIII', 'IIIZI', 'IIZII', 'ZIIII', 'IZIIZ', 'ZIIIZ', 'IIZZI', 'ZIIZI', 'ZIZII', 'ZZIII']], 
        # np.array([1.5+0.j, 1.5+0.j, 1.5+0.j, 1.5+0.j, 3.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j,
  #0.5+0.j, 0.5+0.j, 0.5+0.j], dtype=np.complex64))]
         self.build_backend()
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
-        print(cost_hamiltonian)
         qc = None
         
         if self.qaoa_variant =='vanilla':
@@ -215,6 +211,7 @@ class QAOArunner():
 
         if not self.errors:
             self.backend = StatevectorSimulator() #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
+            print("You are running on the local StateVectorSimulator")
         elif self.simulation:
             noise_model = NoiseModel.from_backend(FakeBrisbane())
             self.backend = AerSimulator(noise_model=noise_model)
@@ -300,7 +297,7 @@ class QAOArunner():
             
             estimator = Estimator(mode=self.backend)
             estimator.options.default_shots = self.amount_shots
-            if self.errors and self.error_correction:
+            if self.errors and self.error_mitigation:
                     # Set simple error suppression/mitigation options
                     estimator.options.dynamical_decoupling.enable = True
                     estimator.options.dynamical_decoupling.sequence_type = "XY4"
@@ -344,7 +341,7 @@ class QAOArunner():
         elapsed_time = time.time()-start_time
         self.runtimes.append(elapsed_time)
         cost = results.data.evs
-        self.objective_func_vals.append(cost)
+        self.objective_func_vals.append(cost.item())
         
      #   found_solution = self.calculate_solution_internal(params)
      #   self.classical_objective_func_vals.append(self.solver.evaluate_bitstring(found_solution))
@@ -382,7 +379,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_correction:
+        if self.errors and self.error_mitigation:
                 # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -416,7 +413,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_correction:
+        if self.errors and self.error_mitigation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -449,7 +446,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_correction:
+        if self.errors and self.error_mitigation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -493,7 +490,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_correction:
+        if self.errors and self.error_mitigation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -508,7 +505,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_correction:
+        if self.errors and self.error_mitigation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"
@@ -539,11 +536,11 @@ class QAOArunner():
             bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
             value = self.solver.evaluate_bitstring(bitstring)
             if value == classical_value:
-                print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
+                #print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
                 percent_chance_optimal += values[i]
 
-        print('keys:',keys)
-        print('values:', values)
+        #print('keys:',keys)
+        #print('values:', values)
 
         return percent_chance_optimal
     
@@ -553,7 +550,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_correction:
+        if self.errors and self.error_mitigation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"

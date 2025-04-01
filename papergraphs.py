@@ -19,62 +19,50 @@ with open("email_credentials.txt", "r") as f:
 import ast
 import networkx as nx
 
-with open("test_settings.txt", "r") as f:
-    settings = ast.literal_eval(f.read().strip())
 
 
-logging.basicConfig(level=logging.DEBUG)
+#with open("test_settings.txt", "r") as f:
+#    settings = ast.literal_eval(f.read().strip())
 
-
+settings = [{'depth' : 1, 'param_initialization' : 'gaussian'},
+            {'depth': 2, 'param_initialization' : 'uniform'}]
 
 @ray.remote(num_cpus = 4)
-def parallell_runner(parameters, graph,name):
+def parallell_runner(parameters, graph):
+    name = nx.to_graph6_bytes(graph).decode('utf-8').strip()
     timestamp = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
     print(f"Processing task {parameters}, {name} at time {date_time}")
-    qaoa = QAOArunner(graph, simulation=True, param_initialization=parameters[0], optimizer =  parameters[1], 
-    qaoa_variant=parameters[2], warm_start=parameters[3], errors = parameters[4],depth = parameters[5], lagrangian_multiplier=parameters[6],
-    amount_shots=parameters[7], max_tol=parameters[8])
+    qaoa = QAOArunner(graph, simulation=True, **parameters)
     qaoa.build_circuit()
     qaoa.run()
     solver = Solver(graph)
     bitstring, value = solver.solve()
     end_time  = time.time()
     date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
+
     print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp} seconds.")
-    return {'param_initialization': parameters[0], 'optimizer': parameters[1],'qaoa_variant': parameters[2], 'warm_start' : parameters[3], 
-    'errors':parameters[4], 'depth' : parameters[5], 'graph_size': len(graph.nodes()), 'graph_name' : name,
-         'lagrangian_multiplier': parameters[6],'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
+    return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name,
+         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution(),
-        'lagrangian_multiplier':parameters[6], 'amount_shots': parameters[7], 'max_tol': parameters[8],}
+        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution()
+                        }
 
 if ray.is_initialized():
     ray.shutdown()
     print('Shutting down old Ray instance.')
 ray.init(log_to_driver=True)
 
-print(settings)
-data = []
-
-name= 'F?~vw'
 
 graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
 
-names = [f'SparseER{i+1}' if i % 2 == 0 else f'DenseER{i//2+1}' for i in range(len(graphs))]
-
-graphs = list(itertools.chain.from_iterable(graphs))
-names = list(itertools.chain.from_iterable(names))
+graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
 print('Amount of graphs: ', len(graphs))
 
-combos = [settings, graphs]
+combos = [settings, graphs] #settings should be a list of dictionaries . Shoudl pass a (dict, graph) tuple
 print('combos', len(combos))
 
 all_combos = list(itertools.product(*combos))
-
-all_combos = [combo + (names[graphs.index(combo[1])],) for combo in all_combos]
-all_combos_dict = [{"parameters": combo[0], "graph": combo[1], "name": combo[2]} for combo in all_combos]
-
 
 n_times = 100
 all_combos *= n_times
@@ -85,21 +73,29 @@ print(f'performing all {n_times} times')
 
 
 print('Settings:', settings)
-
+data = []
 parameter_set = []    
 
+# Find keys with different values across the dictionaries in settings
+keys_with_differences = []
+if settings:
+    keys = settings[0].keys()
+    for key in keys:
+        values = {d[key] for d in settings}
+        if len(values) > 1:  # If there are multiple unique values for this key
+            keys_with_differences.append(key)
 
-for i in range(len(settings[0])):
-    parameter_set += set([settings[k][i] for k in range(len(settings))])
+parameter_set = keys_with_differences
+print(parameter_set)
 
 
 parameter_string = [str(x) + "_" for x in parameter_set]
 parameter_string = "".join(parameter_string)
 parameter_string = parameter_string[0:-1]
 
+print(parameter_string)
 
-
-futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph, name in all_combos]
+futures = [parallell_runner.remote(parameters, graph) for parameters, graph in all_combos]
 
 result_ids, unfinished = ray.wait(futures, timeout = 60*60*16*3, num_returns = len(all_combos))
 for task in unfinished:

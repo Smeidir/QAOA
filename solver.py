@@ -1,21 +1,13 @@
 from docplex.mp.model import Model
 from matplotlib import pyplot as plt
-from rustworkx import NoEdgeBetweenNodes
 import rustworkx as rx
-from rustworkx.visualization import mpl_draw as draw_graph
-from load_data import load_graph_from_csv
-#from mystic.solvers import fmin, fmin_powell
 import numpy as np
-from MaxCutProblem import MaxCutProblem
 from qiskit_optimization.translators import from_docplex_mp, to_ising
 from qiskit_algorithms import QAOA, NumPyMinimumEigensolver
 from qiskit_algorithms.optimizers import COBYLA
 from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
 from qiskit.primitives import Sampler, BackendSamplerV2, BackendSampler #samplre is deprecated, but need it to run. Why?
-from qiskit_optimization.algorithms import (
-    MinimumEigenOptimizer,
-    RecursiveMinimumEigenOptimizer,
-)
+
 import networkx as nx
 #TODO: move the test cases here into a more logical place in the code
 import time
@@ -25,6 +17,8 @@ from mystic.penalty import quadratic_inequality
 from mystic.constraints import as_constraint
 
 import cvxpy as cp
+
+from MaxCutProblem import MaxCutProblem
 
 class Solver():
     """

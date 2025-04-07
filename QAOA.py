@@ -40,8 +40,8 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', solver = None, 
-                 warm_start=False,restrictions=False, k=2, errors = False, flatten = True, verbose = False, depth = 1, vertexcover = True,
+    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
+                 warm_start=False, errors = False, depth = 1, vertexcover = True,
                  max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, error_mitigation = True):
         
         if qaoa_variant not in params.supported_qaoa_variants:
@@ -57,12 +57,8 @@ class QAOArunner():
         self.qaoa_variant = qaoa_variant
         self.optimizer = optimizer
         self.solution = None
-        self.solver = solver
         self.warm_start =warm_start
-        self.restrictions = restrictions
         self.errors = errors
-        self.flatten = flatten
-        self.verbose = verbose
         self.objective_func_vals = []
         self.classical_objective_func_vals = []
         self.depth = depth
@@ -71,13 +67,10 @@ class QAOArunner():
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
         self.error_mitigation = error_mitigation
-
+        self.solver = Solver(self.graph, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
+        self.classical_solution,self.classical_objective_value = self.solver.solve()
         self.fev = 0 #0 quantum function evals, yet.
-
         self.num_qubits = len(self.graph.nodes())
-        self.k=k
-        if k != 2:
-            self.num_qubits = k*len(self.graph) #TODO: implement logic for max values of k
         
 
     def build_circuit(self):
@@ -86,8 +79,8 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        self.solver = Solver(self.graph, relaxed = False, restrictions=self.restrictions,verbose=self.verbose, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
+        print('solver get qp: ', self.solver.get_qp())
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
        # ['IIIIZ', 'IZIII', 'IIIZI', 'IIZII', 'ZIIII', 'IZIIZ', 'ZIIIZ', 'IIZZI', 'ZIIZI', 'ZIZII', 'ZZIII']], 
        # np.array([1.5+0.j, 1.5+0.j, 1.5+0.j, 1.5+0.j, 3.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j,
@@ -95,14 +88,15 @@ class QAOArunner():
         self.build_backend()
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
         qc = None
+        print('cost_hamiltioonian : ', cost_hamiltonian)
         
         if self.qaoa_variant =='vanilla':
 
             if self.warm_start:
                 
-                solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
                 initial_state = QuantumCircuit(self.num_qubits)
-                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in solution_values]
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(1) for x in self.classical_solution]
+ 
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     initial_state.ry(thetas[qubit],qubit)
                 mixer_state = QuantumCircuit(self.num_qubits)
@@ -125,7 +119,8 @@ class QAOArunner():
             if self.warm_start:
                 
                 solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
-                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in solution_values]
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
+
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     qc.ry(thetas[qubit],qubit)
 
@@ -184,12 +179,12 @@ class QAOArunner():
                 qaoa = MinimumEigenOptimizer(qaoa_mes) 
                 self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
         
-        """commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth) #TODO: enable this
+        commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth) #TODO: enable this
         cost_operator = commutation_tester.cost_operator.to_operator()
         mixer_operator = Operator(commutation_tester.mixer_operator)
         commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
         if np.allclose(commutator.data, np.zeros((commutator.data.shape))):
-            raise ArithmeticError("Operators commute.")"""
+            raise ArithmeticError("Operators commute.")
 
 
         ##TODO: Scheck if circuit is flattened
@@ -250,12 +245,14 @@ class QAOArunner():
 
                 init_params = np.concatenate([
                     np.concatenate([np.random.normal(np.pi,0.2,param_cost_length), 
-                                    (np.random.normal(np.pi/2,0.2,param_mixer_length))])
+                                    (np.random.normal(np.pi/2,0.1,param_mixer_length))])
                     for _ in range(self.depth)
                 ])
                 init_params =init_params.flatten()
                 return init_params
-
+            case 'static':
+                init_params = np.array([[-0.2]*param_cost_length + [0.2]*param_mixer_length for _ in range(self.depth)]).flatten()
+                return init_params
             case 'machinelearning':
                 raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
 
@@ -272,10 +269,7 @@ class QAOArunner():
     def run(self):
         self.objective_func_vals = []
         init_params = self.get_init_params()
-        if self.verbose:
-            callback_function=self.callback_function
-        else:
-            callback_function = None
+
         self.runtimes = []
         self.start_time = time.time()
         if self.qaoa_variant == 'recursive':
@@ -285,8 +279,6 @@ class QAOArunner():
                 self.fev += self.cum_fev
                 self.time_elapsed = time.time() -self.start_time
                 self.result = result
-                if self.verbose:
-                    print(dir(result))
                 #self.circuit = self.rqaoa._optimizer hard to get the circuit out
                 self.solution = result.x
                 self.objective_value = result.fval
@@ -310,14 +302,12 @@ class QAOArunner():
             args= (self.circuit, self.cost_hamiltonian, estimator),
             method = self.optimizer,
             tol = self.max_tol,
-            options={'disp': False, 'maxiter': 5000},
-            callback= callback_function)
+            options={'disp': False, 'maxiter': 5000})
                  
             self.final_params = result.x
             self.time_elapsed = time.time() -start_time
             self.result = result
             self.fev = result.nfev
-            if self.verbose: print(self.result)
             self.circuit = self.circuit.assign_parameters(self.result.x)
             self.solution = self.calculate_solution()
             self.objective_value = self.evaluate_sample()
@@ -342,12 +332,6 @@ class QAOArunner():
         self.runtimes.append(elapsed_time)
         cost = results.data.evs
         self.objective_func_vals.append(cost.item())
-        
-     #   found_solution = self.calculate_solution_internal(params)
-     #   self.classical_objective_func_vals.append(self.solver.evaluate_bitstring(found_solution))
-     #   print('Found solution classical value:', self.solver.evaluate_bitstring(found_solution), 'bitstring', found_solution, 'quantum value', cost)
-    
-
 
         return cost
 
@@ -375,18 +359,8 @@ class QAOArunner():
         Prints the results.
         TODO: make better?
         """
-        pub = (self.circuit,)
-        sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=self.amount_shots
+        job = self.get_job()
 
-        if self.errors and self.error_mitigation:
-                # Set simple error suppression/mitigation options
-            sampler.options.dynamical_decoupling.enable = True
-            sampler.options.dynamical_decoupling.sequence_type = "XY4"
-            sampler.options.twirling.enable_gates = True
-            sampler.options.twirling.num_randomizations = "auto"
-
-        job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()
         #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
@@ -409,18 +383,7 @@ class QAOArunner():
     def calculate_solution(self): #TODO: må da finnes en lettere måte?
         #TODO: support fior å finne flere av de mest sannsynlige?
         
-        pub = (self.circuit,)
-        sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=self.amount_shots
-
-        if self.errors and self.error_mitigation:
-        # Set simple error suppression/mitigation options
-            sampler.options.dynamical_decoupling.enable = True
-            sampler.options.dynamical_decoupling.sequence_type = "XY4"
-            sampler.options.twirling.enable_gates = True
-            sampler.options.twirling.num_randomizations = "auto"
-
-        job = sampler.run([pub], shots=int(1e4))
+        job = self.get_job()
         counts_int = job.result()[0].data.meas.get_int_counts()
         #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
@@ -442,18 +405,7 @@ class QAOArunner():
     def calculate_solution_internal(self, params): #TODO: må da finnes en lettere måte?
         #TODO: support fior å finne flere av de mest sannsynlige?
         
-        pub = (self.circuit,params)
-        sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=self.amount_shots
-
-        if self.errors and self.error_mitigation:
-        # Set simple error suppression/mitigation options
-            sampler.options.dynamical_decoupling.enable = True
-            sampler.options.dynamical_decoupling.sequence_type = "XY4"
-            sampler.options.twirling.enable_gates = True
-            sampler.options.twirling.num_randomizations = "auto"
-
-        job = sampler.run([pub], shots=int(1e4))
+        job = self.get_job()
         counts_int = job.result()[0].data.meas.get_int_counts()
         #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
@@ -484,7 +436,7 @@ class QAOArunner():
         print("Same solution", all(bools) or all(bools_reversed)) #same cut but different partitions
         print("Same objective function value: ", classic_solution[1] == self.objective_value)
 
-    def get_data_structures(self):
+    def get_job(self):
 
         pub = (self.circuit,)
         sampler = Sampler(mode=self.backend)
@@ -501,18 +453,8 @@ class QAOArunner():
         return job
 
     def get_prob_most_likely_solution(self):
-        pub = (self.circuit,)
-        sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=self.amount_shots
+        job = self.get_job()
 
-        if self.errors and self.error_mitigation:
-        # Set simple error suppression/mitigation options
-            sampler.options.dynamical_decoupling.enable = True
-            sampler.options.dynamical_decoupling.sequence_type = "XY4"
-            sampler.options.twirling.enable_gates = True
-            sampler.options.twirling.num_randomizations = "auto"
-
-        job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()
         #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
@@ -546,18 +488,8 @@ class QAOArunner():
     
     def print_bitstrings(self):
         matplotlib.rcParams.update({"font.size": 10})
-        pub = (self.circuit,)
-        sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=self.amount_shots
+        job = self.get_job()
 
-        if self.errors and self.error_mitigation:
-        # Set simple error suppression/mitigation options
-            sampler.options.dynamical_decoupling.enable = True
-            sampler.options.dynamical_decoupling.sequence_type = "XY4"
-            sampler.options.twirling.enable_gates = True
-            sampler.options.twirling.num_randomizations = "auto"
-
-        job = sampler.run([pub], shots=int(1e4))
         counts_int = job.result()[0].data.meas.get_int_counts()
         #print(counts_int)
         counts_bin = job.result()[0].data.meas.get_counts()
@@ -588,5 +520,8 @@ class QAOArunner():
         for i, bitstr in enumerate(final_bits.keys()):
             bitstring = list(reversed([int(bit) for bit in bitstr]))
             value = self.solver.evaluate_bitstring(bitstring)
-            ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
+            if isinstance(value, tuple):
+                ax.text(i, final_bits[bitstr], f'{value[0]:.2f}', ha='center', va='bottom', color='red')
+            else:
+                ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()

@@ -25,25 +25,13 @@ with open("test_settings.txt", "r") as f:
     settings = ast.literal_eval(f.read().strip())
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph, name):
- 
-  
-     
-    timestamp = time.time()
-    date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
-    print(f"Processing task {parameters}, {name} at time {date_time}")
     qaoa = QAOArunner(graph, simulation=True, **parameters)
     qaoa.build_circuit()
     qaoa.run()
-    solver = Solver(graph)
-    bitstring, value = solver.solve()
-    end_time  = time.time()
-    date_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time))
-
-    print(f"Solved task {parameters}, {name} at time {date_time}. It took {end_time-timestamp} seconds.")
     return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name,
          'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : bitstring, 'classic_value': value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution()
+        'classic_solution' : qaoa.classical_solution, 'classic_value': qaoa.classical_objective_value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution()
                         }
 
 if ray.is_initialized():
@@ -53,6 +41,7 @@ ray.init(log_to_driver=True)
 
 
 graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
+graphs.reverse()
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
 
@@ -121,13 +110,13 @@ for task in unfinished:
     ray.cancel(task)
 
 underway_df = pd.DataFrame(ray.get(result_ids))
-underway_df.to_csv(f'results_underway.csv', mode='a', header=False)
+underway_df.to_csv(f'results/results_underway.csv', mode='a', header=False)
 data.extend(ray.get(result_ids))
 print(f'Done with Parameters: {settings} at time: {time.time()}')
 
 
 df = pd.DataFrame(data)
-df.to_csv(f'results_papergraph_{parameter_string}.csv')
+df.to_csv(f'results/results_papergraph_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"

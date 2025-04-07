@@ -9,7 +9,7 @@ from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
 from qiskit.primitives import Sampler, BackendSamplerV2, BackendSampler #samplre is deprecated, but need it to run. Why?
 
 import networkx as nx
-#TODO: move the test cases here into a more logical place in the code
+
 import time
 import mystic
 from mystic.solvers import fmin
@@ -27,7 +27,7 @@ class Solver():
     TODO: Add support for max k-cut
     """
     
-    def __init__(self, graph, relaxed = False, restrictions=False, k=2, vertexcover = False, verbose = False, lagrangian = 2):
+    def __init__(self, graph, vertexcover = False, verbose = False, lagrangian = 2):
 
         """
         Initializes the model with the given problem, but does not solve.
@@ -39,12 +39,9 @@ class Solver():
         if vertexcover:
             self.graph = graph
             self.model = Model(name="VertexCover")
-            self.relaxed = relaxed
-            if relaxed: 
-                self.variables = self.model.continuous_var_list(len(self.graph),lb=0,ub=1, name='x')
-                self.model.parameters.optimalitytarget =2 #local minima
-            else:
-                self.variables = self.model.binary_var_list(len(self.graph), name='x')
+
+
+            self.variables = self.model.binary_var_list(len(self.graph), name='x')
 
             objective = 0
 
@@ -54,12 +51,12 @@ class Solver():
             for var in self.variables:
                 objective += self.B*var
 
-
             #for (i,j) in self.graph.edge_list(): 
-            #    objective += self.A*(1- self.variables[i])*( 1-self.variables[j]) #negative to have max problem to align with max cut
-            for (i,j) in self.graph.edge_list(): 
-                self.model.add_constraint(self.variables[i]+self.variables[j] >= 1)
-
+             #      self.model.add_constraint(self.A*(1- self.variables[i])*( 1-self.variables[j]) ==0, 'quad') # quadratic constraints to align with ising hamiltonian
+            #for (i,j) in self.graph.edge_list(): 
+            #    self.model.add_constraint(self.variables[i]+self.variables[j] >= 1) # corresponding non-quadratic constraint
+            for (i,j) in self.graph.edge_list():
+                objective += self.A*(1- self.variables[i])*( 1-self.variables[j])
             print('objective:', objective)
             self.objective = objective
             self.model.objective=objective
@@ -68,30 +65,15 @@ class Solver():
 
             self.graph = graph
             self.model = Model(name="MaxCut")
-            if k> 2:
-                self.model = Model(name="Max-K-Cut")
-            self.relaxed = relaxed
 
-            var_multiplier = 1 if k==2 else k
-
-            if relaxed: 
-                self.variables = self.model.continuous_var_list(var_multiplier*len(self.graph),lb=0,ub=1, name='x')
-                self.model.parameters.optimalitytarget =2 #local minima
-            else:
-                self.variables = self.model.binary_var_list(var_multiplier*len(self.graph), name='x')
+            self.variables = self.model.binary_var_list(len(self.graph), name='x')
             
             objective = 0
 
-            #for edge in graph.edges:
     
-
-            for (i,j, w) in self.graph.weighted_edge_list(): #TODO: extend to k-cut            
+            for (i,j, w) in self.graph.weighted_edge_list():            
                 objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
                 # w is a numpy array ( becasue i use np to generate)
-
-            if restrictions:
-                for i in range(2,len(graph), 3): #adds that every ordered tuple of three qubits most have 1 positive - for testing now, partitioning later
-                    self.model.add_constraint(self.variables[i-2] + self.variables[i-1] + self.variables[i] == 1)#TODO: extend to k-cut
 
             self.objective = objective
             self.model.objective=objective
@@ -105,12 +87,14 @@ class Solver():
             is_infeasible = 0
             for (i, j) in self.graph.edge_list():
                 is_infeasible += self.A*(1 - bitstring[i]) * (1 - bitstring[j])
-            if is_infeasible: return (is_infeasible + self.B*np.sum(bitstring))
-            else: return self.B* np.sum(bitstring)
+            if is_infeasible:  #FIXX THIS TODO SOM FAEN
+                return (self.B*np.sum(bitstring) + is_infeasible, True) #now returns value + violation
+            return self.B* np.sum(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
             objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
         return objective_value
+    
     def get_qp(self):
         return from_docplex_mp(self.model)
 
@@ -123,55 +107,18 @@ class Solver():
         """
         if self.vertexcover:
             if self.verbose:
-                print(f'Objective to minimize: {self.objective} for relaxed = {self.relaxed}')
+                print(f'Objective to minimize: {self.objective}')
             self.model.minimize(self.objective)
             
             solution = self.model.solve()
-            print('optimal value found:',solution.get_objective_value() )
+            #print('optimal value found:',solution.get_objective_value() )
             bitstring = [var.solution_value for var in self.variables]
             if self.verbose:
                 print(solution.get_objective_value(), bitstring)
             return bitstring, solution.get_objective_value()
-
-        if self.relaxed:
-
-                        # Define the weight matrix (from QUBO or adjacency matrix of graph)
-      
-            W = np.zeros((len(self.graph), len(self.graph)))
-            for (i, j, w) in self.graph.weighted_edge_list():
-                W[i, j] = w
-                W[j, i] = w  # Assuming the graph is undirected
-
-            n = W.shape[0]
-            X = cp.Variable((n, n), PSD=True)  # PSD: Positive semidefinite
-            constraints = [cp.diag(X) == 1]  # Diagonal constraints X_ii = 1
-
-            # Objective function
-            objective = cp.Maximize(cp.sum(cp.multiply(W, (1 - X))) / 4)
-
-            # Solve
-            problem = cp.Problem(objective, constraints)
-            problem.solve()
-            # Eigendecomposition of X
-            eigenvalues, eigenvectors = np.linalg.eigh(X.value)
-
-            # Filter out negligible eigenvalues (numerical precision issues)
-            valid_indices = eigenvalues > 1e-10
-            eigenvalues = eigenvalues[valid_indices]
-            eigenvectors = eigenvectors[:, valid_indices]
-
-            # Form the vectors V (scaled by square root of eigenvalues)
-            V = eigenvectors @ np.diag(np.sqrt(eigenvalues))
-            random_hyperplane = np.random.randn(V.shape[1])
-
-            # Assign each vertex to a partition based on the sign of the dot product with the hyperplane
-            assignments = np.sign(V @ random_hyperplane)
-            
-            assignments = np.where(assignments == -1, 0, assignments)
-            return assignments, self.evaluate_bitstring(assignments)
                         
         if self.verbose:
-            print(f'Objective to maximize: {self.objective} for relaxed = {self.relaxed}')
+            print(f'Objective to maximize: {self.objective}')
         self.model.maximize(self.objective)
 
         solution = self.model.solve()
@@ -180,7 +127,43 @@ class Solver():
             print(solution.get_objective_value(), bitstring)
         return bitstring, solution.get_objective_value()
 
-    
+    def solve_relaxed(self, method):
+
+            if 'method' == 'GW':
+                W = np.zeros((len(self.graph), len(self.graph)))
+                for (i, j, w) in self.graph.weighted_edge_list():
+                    W[i, j] = w
+                    W[j, i] = w  # Assuming the graph is undirected
+
+                n = W.shape[0]
+                X = cp.Variable((n, n), PSD=True)  # PSD: Positive semidefinite
+                constraints = [cp.diag(X) == 1]  # Diagonal constraints X_ii = 1
+
+                # Objective function
+                objective = cp.Maximize(cp.sum(cp.multiply(W, (1 - X))) / 4)
+
+                # Solve
+                problem = cp.Problem(objective, constraints)
+                problem.solve()
+                # Eigendecomposition of X
+                eigenvalues, eigenvectors = np.linalg.eigh(X.value)
+
+                # Filter out negligible eigenvalues (numerical precision issues)
+                valid_indices = eigenvalues > 1e-10
+                eigenvalues = eigenvalues[valid_indices]
+                eigenvectors = eigenvectors[:, valid_indices]
+
+                # Form the vectors V (scaled by square root of eigenvalues)
+                V = eigenvectors @ np.diag(np.sqrt(eigenvalues))
+                random_hyperplane = np.random.randn(V.shape[1])
+
+                # Assign each vertex to a partition based on the sign of the dot product with the hyperplane
+                assignments = np.sign(V @ random_hyperplane)
+                
+                assignments = np.where(assignments == -1, 0, assignments)
+                return assignments, self.evaluate_bitstring(assignments)
+
+
     def plot_result(self):
         """
         Plots graph of partition. Must be run after solve.

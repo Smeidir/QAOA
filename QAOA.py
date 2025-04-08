@@ -1,6 +1,7 @@
 import time
 
 import matplotlib
+from qiskit.quantum_info import Statevector
 import numpy as np
 import rustworkx as rx
 from matplotlib import pyplot as plt
@@ -222,7 +223,6 @@ class QAOArunner():
         self.circuit.draw('mpl', fold=False, idle_wires=False)
 
     def get_init_params(self): 
-        param_length = None #none so if its not changed its easier to see bugs - if it was 0 might be bugs further down the line
         param_cost_length = 1
         param_mixer_length = 1
 
@@ -282,8 +282,22 @@ class QAOArunner():
                 #self.circuit = self.rqaoa._optimizer hard to get the circuit out
                 self.solution = result.x
                 self.objective_value = result.fval
-
-
+        if self.simulation and not self.errors:
+            start_time = time.time()
+            result = minimize(
+            self.cost_func_statevector, 
+            init_params,
+            args= (self.circuit, self.cost_hamiltonian),
+            method = self.optimizer,
+            tol = self.max_tol,
+            options={'disp': False, 'maxiter': 5000})
+            self.final_params = result.x
+            self.time_elapsed = time.time() -start_time
+            self.result = result
+            self.fev = result.nfev
+            self.circuit = self.circuit.assign_parameters(self.result.x)
+            self.solution = self.calculate_solution()
+            self.objective_value = self.evaluate_sample()
         
         else:
             
@@ -322,18 +336,59 @@ class QAOArunner():
         #TODO: see if this can be optimized
         #transform observable defined on virtual qubits to an observable defined on all physical qubits
 
-        isa_hamiltonian = hamiltonian.apply_layout(ansatz.layout) #TODO: What does this actually do?
-
+        isa_hamiltonian = hamiltonian.apply_layout(ansatz.layout) #TODO: What does this actually do? - perhaps efficiency to be gained here?
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
-        start_time = time.time()
         results = job.result()[0]
-        elapsed_time = time.time()-start_time
-        self.runtimes.append(elapsed_time)
         cost = results.data.evs
         self.objective_func_vals.append(cost.item())
 
         return cost
+    def remove_measurements(self, circuit):
+        """Return a new circuit with all measurements removed."""
+        new_circuit = QuantumCircuit(circuit.num_qubits)
+        for instr, qargs, cargs in circuit.data:
+            if instr.name != "measure":
+                new_circuit.append(instr, qargs, cargs)
+        return new_circuit
+        
+    def cost_func_statevector(self, params, ansatz, hamiltonian):
+        clean_circuit = self.remove_measurements(ansatz)
+        sv = Statevector.from_instruction(clean_circuit.assign_parameters(params))
+        cost = np.real(sv.expectation_value(hamiltonian))
+        self.objective_func_vals.append(cost)
+        return cost
+    
+    def prob_best_solution(self,params):
+        #TODO: see if this can be optimized
+        #transform observable defined on virtual qubits to an observable defined on all physical qubits
+        circuit = self.circuit.copy()
+        circuit = circuit.assign_parameters(params)
+        job = self.get_job_custom_circuit(circuit)
+        results = job.result()[0]
+
+        counts_int = job.result()[0].data.meas.get_int_counts()
+        #print(counts_int)
+        counts_bin = job.result()[0].data.meas.get_counts()
+
+        shots = sum(counts_int.values())
+        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
+        keys = list(final_distribution_int.keys())
+        values = np.array(list(final_distribution_int.values()))
+        
+        _,classical_value = self.solver.solve() 
+        percent_chance_optimal = 0
+        bitstrings = [list(reversed(to_bitstring(key, self.num_qubits))) for key in keys]
+        evaluations = np.array([self.solver.evaluate_bitstring(bitstring) for bitstring in bitstrings], dtype = 'f')
+        ideal_values = np.where(evaluations == classical_value, 1, 0)
+        percent_chance_optimal = np.sum(values[evaluations == classical_value])
+        return percent_chance_optimal
+
 
     def draw_objective_value(self):
         """
@@ -451,6 +506,22 @@ class QAOArunner():
 
         job = sampler.run([pub], shots=int(1e4))
         return job
+    
+    def get_job_custom_circuit(self, circuit):
+
+        pub = (circuit,)
+        sampler = Sampler(mode=self.backend)
+        sampler.options.default_shots=self.amount_shots
+
+        if self.errors and self.error_mitigation:
+        # Set simple error suppression/mitigation options
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
+
+        job = sampler.run([pub], shots=int(1e4))
+        return job
 
     def get_prob_most_likely_solution(self):
         job = self.get_job()
@@ -519,7 +590,7 @@ class QAOArunner():
             ax.get_children()[int(p)].set_color("tab:purple")
         for i, bitstr in enumerate(final_bits.keys()):
             bitstring = list(reversed([int(bit) for bit in bitstr]))
-            value = self.solver.evaluate_bitstring(bitstring)
+            value = self.solver.evaluate_bitstring(bitstring, mark_infeasible=True)
             if isinstance(value, tuple):
                 ax.text(i, final_bits[bitstr], f'{value[0]:.2f}', ha='center', va='bottom', color='red')
             else:

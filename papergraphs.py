@@ -19,10 +19,14 @@ with open("email_credentials.txt", "r") as f:
 import ast
 import networkx as nx
 
+local = False
 
+if not local:
+    with open("test_settings.txt", "r") as f:
+        settings = ast.literal_eval(f.read().strip())
+if local: 
+    settings = "strign"
 
-with open("test_settings.txt", "r") as f:
-    settings = ast.literal_eval(f.read().strip())
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, simulation=True, **parameters)

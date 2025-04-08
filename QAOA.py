@@ -42,7 +42,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False, errors = False, depth = 1, vertexcover = True,
+                 warm_start=False, errors = False, depth = 1, vertexcover = False,
                  max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, error_mitigation = True):
         
         if qaoa_variant not in params.supported_qaoa_variants:
@@ -81,15 +81,14 @@ class QAOArunner():
         """
         conv = QuadraticProgramToQubo()
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
-        print('solver get qp: ', self.solver.get_qp())
+
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
        # ['IIIIZ', 'IZIII', 'IIIZI', 'IIZII', 'ZIIII', 'IZIIZ', 'ZIIIZ', 'IIZZI', 'ZIIZI', 'ZIZII', 'ZZIII']], 
        # np.array([1.5+0.j, 1.5+0.j, 1.5+0.j, 1.5+0.j, 3.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j,
  #0.5+0.j, 0.5+0.j, 0.5+0.j], dtype=np.complex64))]
         self.build_backend()
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
-        qc = None
-        print('cost_hamiltioonian : ', cost_hamiltonian)
+
         
         if self.qaoa_variant =='vanilla':
 
@@ -207,17 +206,17 @@ class QAOArunner():
 
         if not self.errors:
             self.backend = StatevectorSimulator() #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
-            print("You are running on the local StateVectorSimulator")
+            #print("You are running on the local StateVectorSimulator")
         elif self.simulation:
             noise_model = NoiseModel.from_backend(FakeBrisbane())
             self.backend = AerSimulator(noise_model=noise_model)
-            print("You are running on the local Aer simulator: ", self.backend.name, "of ", FakeBrisbane().name)
+            #print("You are running on the local Aer simulator: ", self.backend.name, "of ", FakeBrisbane().name)
 
         else:
             QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
             service = QiskitRuntimeService(channel='ibm_quantum')
             self.backend = service.least_busy(min_num_qubits=127)
-            print("You are running on the prestigious IBM machine ", self.backend)
+            #print("You are running on the prestigious IBM machine ", self.backend)
         
     def draw_circuit(self):
         self.circuit.draw('mpl', fold=False, idle_wires=False)
@@ -433,7 +432,7 @@ class QAOArunner():
         most_likely = keys[np.argmax(np.abs(values))]
         most_likely_bitstring = to_bitstring(most_likely, len(self.graph))#TODO: change to amount of qubits
         most_likely_bitstring.reverse()
-        print("Result bitstring:", most_likely_bitstring)
+        #print("Result bitstring:", most_likely_bitstring)
 
     def calculate_solution(self): #TODO: må da finnes en lettere måte?
         #TODO: support fior å finne flere av de mest sannsynlige?

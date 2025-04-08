@@ -18,6 +18,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 import ast
 import networkx as nx
+from tqdm import tqdm
 
 local = False
 
@@ -109,7 +110,21 @@ print('parameter string', parameter_string)
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph,name in all_combos]
 
-result_ids, unfinished = ray.wait(futures, timeout = 60*60*16*3, num_returns = len(all_combos))
+result_ids = []
+unfinished = futures
+
+with tqdm(total=len(futures), desc="Processing tasks") as pbar:
+    start_time = time.time()
+    max_runtime = 3 * 24 * 60 * 60  # 3 days in seconds
+
+    while unfinished:
+        if time.time() - start_time > max_runtime:
+            print("Maximum runtime exceeded. Breaking the loop.")
+            break
+        done, unfinished = ray.wait(unfinished, num_returns=10)
+        result_ids.extend(done)
+        pbar.update(len(done))
+
 for task in unfinished:
     ray.cancel(task)
 

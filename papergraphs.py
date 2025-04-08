@@ -20,7 +20,7 @@ import ast
 import networkx as nx
 from tqdm import tqdm
 
-local = False
+local = True
 
 if not local:
     with open("test_settings.txt", "r") as f:

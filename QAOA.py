@@ -1,7 +1,7 @@
 import time
 
 import matplotlib
-from qiskit.quantum_info import Statevector
+from qiskit.quantum_info import Statevector, DensityMatrix,Operator, SparsePauliOp
 import numpy as np
 import rustworkx as rx
 from matplotlib import pyplot as plt
@@ -10,9 +10,8 @@ from qiskit.circuit import Parameter
 from qiskit.circuit.library import HGate, QAOAAnsatz
 from qiskit.primitives import BackendSampler
 from qiskit.providers.fake_provider import GenericBackendV2
-from qiskit.quantum_info import Operator, SparsePauliOp
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit_aer import AerSimulator, StatevectorSimulator
+from qiskit_aer import AerSimulator, StatevectorSimulator, Aer
 from qiskit_aer.noise import NoiseModel
 from qiskit_algorithms import QAOA
 from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
@@ -41,9 +40,9 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, simulation=True, param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False, errors = False, depth = 1, vertexcover = False,
-                 max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, error_mitigation = True):
+    def __init__(self, graph, backend_mode = 'statevector', param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
+                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, 
+                 lagrangian_multiplier = 2):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -51,15 +50,16 @@ class QAOArunner():
             raise ValueError(f'Non-supported param initializer. Your param: {param_initialization} not in supported parameters:{params.supported_param_inits}.')
         if optimizer not in params.supported_optimizers:
             raise ValueError(f'Non-supported param initializer. Your param: {optimizer} not in supported parameters:{params.supported_optimizers}.')
+        if backend_mode not in params.supported_backends:
+            raise ValueError(f'Non-supported param initializer. Your param: {optimizer} not in supported parameters:{params.supported_backends}.')
       
         self.graph = graph
-        self.simulation = simulation
+        self.backend_mode = backend_mode
         self.param_initialization = param_initialization
         self.qaoa_variant = qaoa_variant
         self.optimizer = optimizer
         self.solution = None
         self.warm_start =warm_start
-        self.errors = errors
         self.objective_func_vals = []
         self.classical_objective_func_vals = []
         self.depth = depth
@@ -67,7 +67,6 @@ class QAOArunner():
         self.max_tol = max_tol
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
-        self.error_mitigation = error_mitigation
         self.solver = Solver(self.graph, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
         self.classical_solution,self.classical_objective_value = self.solver.solve()
         self.fev = 0 #0 quantum function evals, yet.
@@ -203,20 +202,26 @@ class QAOArunner():
 
 
     def build_backend(self):
+        match self.backend_mode:
+        
+            case 'statevector':
+                self.backend = StatevectorSimulator() #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
+                #print("You are running on the local StateVectorSimulator")
+            case 'density_matrix_simulation':
+                noise_model = NoiseModel.from_backend(FakeBrisbane())
+                self.backend = AerSimulator(method='density_matrix',
+                                noise_model=noise_model)
+                print("Running on: Density matrix simulator with noise")
 
-        if not self.errors:
-            self.backend = StatevectorSimulator() #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
-            #print("You are running on the local StateVectorSimulator")
-        elif self.simulation:
-            noise_model = NoiseModel.from_backend(FakeBrisbane())
-            self.backend = AerSimulator(noise_model=noise_model)
-            #print("You are running on the local Aer simulator: ", self.backend.name, "of ", FakeBrisbane().name)
+            case 'noisy_sampling':
+                self.backend = AerSimulator.from_backend(FakeBrisbane())
+                print("Running on: AerSimulator with noise")
 
-        else:
-            QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
-            service = QiskitRuntimeService(channel='ibm_quantum')
-            self.backend = service.least_busy(min_num_qubits=127)
-            #print("You are running on the prestigious IBM machine ", self.backend)
+            case 'quantum_backend':
+                QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
+                service = QiskitRuntimeService(channel='ibm_quantum')
+                self.backend = service.least_busy(min_num_qubits=127)
+                print("Running on IBM quantum backend:", self.backend)
         
     def draw_circuit(self):
         self.circuit.draw('mpl', fold=False, idle_wires=False)
@@ -271,6 +276,7 @@ class QAOArunner():
 
         self.runtimes = []
         self.start_time = time.time()
+
         if self.qaoa_variant == 'recursive':
 
                 result = self.rqaoa.solve(self.solver.get_qp())
@@ -281,49 +287,57 @@ class QAOArunner():
                 #self.circuit = self.rqaoa._optimizer hard to get the circuit out
                 self.solution = result.x
                 self.objective_value = result.fval
-        if self.simulation and not self.errors:
-            start_time = time.time()
-            result = minimize(
-            self.cost_func_statevector, 
-            init_params,
-            args= (self.circuit, self.cost_hamiltonian),
-            method = self.optimizer,
-            tol = self.max_tol,
-            options={'disp': False, 'maxiter': 5000})
-            self.final_params = result.x
-            self.time_elapsed = time.time() -start_time
-            self.result = result
-            self.fev = result.nfev
-            self.circuit = self.circuit.assign_parameters(self.result.x)
-            self.solution = self.calculate_solution()
-            self.objective_value = self.evaluate_sample()
-        
-        else:
+                return 
+
+
+
+        match self.backend_mode:
+
+            case 'statevector':
+                result = minimize(
+                self.cost_func_statevector, 
+                init_params,
+                args= (self.circuit, self.cost_hamiltonian),
+                method = self.optimizer,
+                tol = self.max_tol,
+                options={'disp': False, 'maxiter': 5000})
+
+            case 'density_matrix_simulation':
+                result = minimize(
+                self.cost_func_density_matrix, 
+                init_params,
+                args= (self.circuit, self.cost_hamiltonian),
+                method = self.optimizer,
+                tol = self.max_tol,
+                options={'disp': False, 'maxiter': 5000})
             
-            estimator = Estimator(mode=self.backend)
-            estimator.options.default_shots = self.amount_shots
-            if not self.simulation: #self.errors and self.error_mitigation:
-                    # Set simple error suppression/mitigation options
+            case 'noisy_sampling'| 'quantum_backend' :
+                estimator = Estimator(mode=self.backend)
+                estimator.options.default_shots = self.amount_shots
+
+                # Set simple error suppression/mitigation options
+                if self.backend_mode == 'quantum_backend':
                     estimator.options.dynamical_decoupling.enable = True
                     estimator.options.dynamical_decoupling.sequence_type = "XY4"
                     estimator.options.twirling.enable_gates = True
                     estimator.options.twirling.num_randomizations = "auto"
-            start_time = time.time()
-            result = minimize(
-            self.cost_func_estimator, 
-            init_params,
-            args= (self.circuit, self.cost_hamiltonian, estimator),
-            method = self.optimizer,
-            tol = self.max_tol,
-            options={'disp': False, 'maxiter': 5000})
+                isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) #TODO: What does this actually do? - perhaps efficiency to be gained here?
+                result = minimize(
+                self.cost_func_estimator, 
+                init_params,
+                args= (self.circuit, isa_hamiltonian, estimator),
+                method = self.optimizer,
+                tol = self.max_tol,
+                options={'disp': False, 'maxiter': 5000})
+
                  
-            self.final_params = result.x
-            self.time_elapsed = time.time() -start_time
-            self.result = result
-            self.fev = result.nfev
-            self.circuit = self.circuit.assign_parameters(self.result.x)
-            self.solution = self.calculate_solution()
-            self.objective_value = self.evaluate_sample()
+        self.final_params = result.x
+        self.time_elapsed = time.time() -self.start_time
+        self.result = result
+        self.fev = result.nfev
+        #self.circuit = self.circuit.assign_parameters(self.result.x)
+        self.solution = self.calculate_solution()
+        self.objective_value = self.evaluate_sample()
         
 
     def evaluate_sample(self) -> float:
@@ -331,11 +345,9 @@ class QAOArunner():
         solution_value = self.solver.evaluate_bitstring(self.solution)
         return solution_value
         #return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
-    def cost_func_estimator(self,params, ansatz, hamiltonian, estimator):
+    def cost_func_estimator(self,params, ansatz, isa_hamiltonian, estimator):
         #TODO: see if this can be optimized
-        #transform observable defined on virtual qubits to an observable defined on all physical qubits
 
-        isa_hamiltonian = hamiltonian.apply_layout(ansatz.layout) #TODO: What does this actually do? - perhaps efficiency to be gained here?
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
         results = job.result()[0]
@@ -358,20 +370,19 @@ class QAOArunner():
         self.objective_func_vals.append(cost)
         return cost
     
+    def cost_func_density_matrix(self, params, ansatz, hamiltonian):
+        circuit = self.remove_measurements(ansatz.assign_parameters(params))
+        circuit.save_density_matrix()
+        result = self.backend.run(circuit).result()
+        rho = DensityMatrix(result.data(0)['density_matrix'])
+        cost = np.real(rho.expectation_value(hamiltonian))
+        self.objective_func_vals.append(cost)
+        return cost
+    
     def prob_best_solution(self,params):
         #TODO: see if this can be optimized
         #transform observable defined on virtual qubits to an observable defined on all physical qubits
-        circuit = self.circuit.copy()
-        circuit = circuit.assign_parameters(params)
-        job = self.get_job_custom_circuit(circuit)
-        results = job.result()[0]
-
-        counts_int = job.result()[0].data.meas.get_int_counts()
-        #print(counts_int)
-        counts_bin = job.result()[0].data.meas.get_counts()
-
-        shots = sum(counts_int.values())
-        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+        final_distribution_int = self.get_bitstring_probabilities()
 
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
@@ -405,45 +416,10 @@ class QAOArunner():
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
         rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
 
-
-    def get_prob_distribution(self):
-        """
-        Gives the probability distribution per possible outcome.
-        Must be called after run().
-        Prints the results.
-        TODO: make better?
-        """
-        job = self.get_job()
-
-        counts_int = job.result()[0].data.meas.get_int_counts()
-        #print(counts_int)
-        counts_bin = job.result()[0].data.meas.get_counts()
-        shots = sum(counts_int.values())
-        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
-        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
-        #print(final_distribution_int)
-        def to_bitstring(integer, num_bits):
-            result = np.binary_repr(integer, width=num_bits)
-            return [int(digit) for digit in result]
-
-        keys = list(final_distribution_int.keys())
-        values = list(final_distribution_int.values())
-
-        most_likely = keys[np.argmax(np.abs(values))]
-        most_likely_bitstring = to_bitstring(most_likely, len(self.graph))#TODO: change to amount of qubits
-        most_likely_bitstring.reverse()
-        #print("Result bitstring:", most_likely_bitstring)
-
     def calculate_solution(self): #TODO: må da finnes en lettere måte?
         #TODO: support fior å finne flere av de mest sannsynlige?
         
-        job = self.get_job()
-        counts_int = job.result()[0].data.meas.get_int_counts()
-        #print(counts_int)
-        counts_bin = job.result()[0].data.meas.get_counts()
-        shots = sum(counts_int.values())
-        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
-        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
+        final_distribution_int = self.get_bitstring_probabilities()
         #print(final_distribution_int)
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
@@ -456,17 +432,12 @@ class QAOArunner():
         most_likely_bitstring = to_bitstring(most_likely,self.num_qubits)
         most_likely_bitstring.reverse()
         return most_likely_bitstring
+    
     def calculate_solution_internal(self, params): #TODO: må da finnes en lettere måte?
         #TODO: support fior å finne flere av de mest sannsynlige?
         
-        job = self.get_job()
-        counts_int = job.result()[0].data.meas.get_int_counts()
-        #print(counts_int)
-        counts_bin = job.result()[0].data.meas.get_counts()
-        shots = sum(counts_int.values())
-        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
-        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
-        #print(final_distribution_int)
+        final_distribution_int = self.get_bitstring_probabilities()
+
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
             return [int(digit) for digit in result]
@@ -490,24 +461,58 @@ class QAOArunner():
         print("Same solution", all(bools) or all(bools_reversed)) #same cut but different partitions
         print("Same objective function value: ", classic_solution[1] == self.objective_value)
 
-    def get_job(self):
+    def get_bitstring_probabilities(self, params=None):
+        """
+        Returns a dictionary of bitstring probabilities from the current circuit.
+        In sampling modes: returns normalized counts from sampling.
+        In statevector/density matrix: returns exact probabilities.
+        Optional to pass a set of parameters to test the qaoa on.
+        """
+  
+        if (params is None) and (self.final_params is None): #truth value of array is ambigous
+            raise ValueError('No parameters passed, and no final_params logged from an optimizer run. Please run the QAOA class or provide a parameter set.')
+        params = params if params else self.final_params
+        
+        match self.backend_mode:
+            case 'statevector':
+                clean_circuit = self.remove_measurements(self.circuit)
+                state = Statevector.from_instruction(clean_circuit.assign_parameters(params))
+                probs = {int(k, 2): v for k, v in state.probabilities_dict().items()}
+                print(probs)
+                return probs
 
-        pub = (self.circuit,)
-        sampler = Sampler(mode=self.backend)
-        sampler.options.default_shots=self.amount_shots
+            case 'density_matrix_simulation':
+                clean_circuit = self.remove_measurements(self.circuit)
+                result = self.backend.run(clean_circuit.assign_parameters(params)).result()
+                rho = DensityMatrix(result.data(0)['density_matrix'])
+                # Projectors in computational basis
+                probs = {}
+                for i in range(2 ** self.num_qubits):
+                    bitstr = format(i, f'0{self.num_qubits}b')
+                    projector = np.zeros((2 ** self.num_qubits, 2 ** self.num_qubits))
+                    projector[i, i] = 1.0
+                    probs[bitstr] = np.real(np.trace(rho.data @ projector))
+                return probs
+            
+            case 'noisy_sampling' | 'quantum_backend':
+                pub = (self.circuit,params)
+                sampler = Sampler(mode=self.backend)
+                sampler.options.default_shots = self.amount_shots
 
-        if not self.simulation and self.error_mitigation:
-        # Set simple error suppression/mitigation options
-            sampler.options.dynamical_decoupling.enable = True
-            sampler.options.dynamical_decoupling.sequence_type = "XY4"
-            sampler.options.twirling.enable_gates = True
-            sampler.options.twirling.num_randomizations = "auto"
+                if self.backend_mode == 'quantum_backend':
+                # Set simple error suppression/mitigation options
+                    sampler.options.dynamical_decoupling.enable = True
+                    sampler.options.dynamical_decoupling.sequence_type = "XY4"
+                    sampler.options.twirling.enable_gates = True
+                    sampler.options.twirling.num_randomizations = "auto"
 
-        job = sampler.run([pub], shots=int(1e4))
-        return job
+                job = sampler.run([pub])
+                counts_int = job.result()[0].data.meas.get_int_counts()
+                shots = sum(counts_int.values())
+                final_distribution_int = {key: val/shots for key, val in counts_int.items()}
+                return final_distribution_int
     
     def get_job_custom_circuit(self, circuit):
-
         pub = (circuit,)
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
@@ -523,16 +528,8 @@ class QAOArunner():
         return job
 
     def get_prob_most_likely_solution(self):
-        job = self.get_job()
 
-        counts_int = job.result()[0].data.meas.get_int_counts()
-        #print(counts_int)
-        counts_bin = job.result()[0].data.meas.get_counts()
-
-        shots = sum(counts_int.values())
-        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
-        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
-        #print(final_distribution_int)
+        final_distribution_int = self.get_bitstring_probabilities()
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
             return [int(digit) for digit in result]
@@ -544,32 +541,24 @@ class QAOArunner():
         percent_chance_optimal = 0
         
         for i in range(len(keys)):
-
             bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
             value = self.solver.evaluate_bitstring(bitstring)
             if value == classical_value:
                 #print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
                 percent_chance_optimal += values[i]
-
         #print('keys:',keys)
         #print('values:', values)
-
         return percent_chance_optimal
     
     def print_bitstrings(self):
         matplotlib.rcParams.update({"font.size": 10})
-        job = self.get_job()
+        final_distribution_int = self.get_bitstring_probabilities()
 
-        counts_int = job.result()[0].data.meas.get_int_counts()
-        #print(counts_int)
-        counts_bin = job.result()[0].data.meas.get_counts()
-
-        shots = sum(counts_int.values())
-        final_distribution_int = {key: val/shots for key, val in counts_int.items()}
-        final_distribution_bin = {key: val/shots for key, val in counts_bin.items()}
-        _,classical_value = self.solver.solve()
-
-        final_bits = final_distribution_bin
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return result
+        final_bits = {to_bitstring(k,self.num_qubits):v for k, v in final_distribution_int.items()}
+        _, classical_value = self.solver.solve()
         values = np.abs(list(final_bits.values()))
         #top_4_values = sorted(values, reverse=True)[:4]
         positions = []

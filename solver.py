@@ -57,7 +57,7 @@ class Solver():
             #    self.model.add_constraint(self.variables[i]+self.variables[j] >= 1) # corresponding non-quadratic constraint
             for (i,j) in self.graph.edge_list():
                 objective += self.A*(1- self.variables[i])*( 1-self.variables[j])
-            print('objective:', objective)
+
             self.objective = objective
             self.model.objective=objective
             self.model.minimize(self.objective)
@@ -79,7 +79,7 @@ class Solver():
             self.model.objective=objective
             self.model.maximize(self.objective)
             
-    def evaluate_bitstring(self, bitstring):
+    def evaluate_bitstring(self, bitstring, mark_infeasible = False):
         """
         Evaluates the objective value for a given bitstring.
         """
@@ -88,7 +88,10 @@ class Solver():
             for (i, j) in self.graph.edge_list():
                 is_infeasible += self.A*(1 - bitstring[i]) * (1 - bitstring[j])
             if is_infeasible:  #FIXX THIS TODO SOM FAEN
-                return (self.B*np.sum(bitstring) + is_infeasible, True) #now returns value + violation
+                if mark_infeasible:
+                    return (self.B*np.sum(bitstring) + is_infeasible, True) #now returns value + violation
+                else:
+                    return self.B*np.sum(bitstring) + is_infeasible
             return self.B* np.sum(bitstring)
         objective_value = 0
         for (i, j, w) in self.graph.weighted_edge_list():
@@ -164,11 +167,12 @@ class Solver():
                 return assignments, self.evaluate_bitstring(assignments)
 
 
-    def plot_result(self):
+    def plot_result(self, bitstring):
         """
         Plots graph of partition. Must be run after solve.
         """
-        bitstring = [int(var.solution_value) for var in self.variables]
+        if not bitstring:
+            bitstring = [int(var.solution_value) for var in self.variables]
 
 
         colors = ["tab:grey" if i == 0 else "tab:purple" for i in bitstring]

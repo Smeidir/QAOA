@@ -496,7 +496,7 @@ class QAOArunner():
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_mitigation:
+        if not self.simulation and self.error_mitigation:
         # Set simple error suppression/mitigation options
             sampler.options.dynamical_decoupling.enable = True
             sampler.options.dynamical_decoupling.sequence_type = "XY4"

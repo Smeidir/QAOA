@@ -62,7 +62,7 @@ for graph in graphs: #TODO: write graph6 decoder
     graph6_strings.append(graph6_string)
 
 
-
+print('Graph6 strings', graph6_string)
 all_combos = list(itertools.product(*combos))
 
 combos_with_name = []

@@ -5,13 +5,13 @@ import yagmail
 with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
-df = pd.read_csv("results_papergraph_depth_{2, 4, 6}.csv")
+df = pd.read_csv("results/results_papergraph_depth_{2, 4, 6}.csv")
 df = df.drop(columns=["obj_func_evals"], errors="ignore")
-df.to_csv("results_papergraph_depth_{2, 4, 6}.csv")
+df.to_csv("results/results_papergraph_depth_{2, 4, 6}.csv")
 
-df = pd.read_csv("results_papergraph_depth_{8, 10}.csv")
+df = pd.read_csv("results/results_papergraph_depth_{8, 10}.csv")
 df = df.drop(columns=["obj_func_evals"], errors="ignore")
-df.to_csv("results_papergraph_depth_{8, 10}.csv")
+df.to_csv("results/results_papergraph_depth_{8, 10}.csv")
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"

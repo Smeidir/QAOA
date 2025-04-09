@@ -95,7 +95,8 @@ class QAOArunner():
             if self.warm_start:
                 
                 initial_state = QuantumCircuit(self.num_qubits)
-                thetas = [-np.pi/2 + (1-2*x)* np.arctan(1) for x in self.classical_solution]
+                
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
  
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     initial_state.ry(thetas[qubit],qubit)

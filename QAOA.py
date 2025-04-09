@@ -29,6 +29,7 @@ from scipy.optimize import minimize
 
 import params
 from solver import Solver
+from qiskit.quantum_info import Clifford
 
 
 class QAOArunner():
@@ -192,6 +193,13 @@ class QAOArunner():
             candidate_circuit = pm.run(qc)
             self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
+
+        # Check if the circuit is a Clifford circuit
+        try:
+            clifford_circuit = Clifford(self.circuit)
+            print("The circuit is a Clifford circuit.")
+        except Exception as e:
+            print("The circuit is not a Clifford circuit.")
 
 
     def print_problem(self):
@@ -491,10 +499,10 @@ class QAOArunner():
                 # Projectors in computational basis
                 probs = {}
                 for i in range(2 ** self.num_qubits):
-                    bitstr = format(i, f'0{self.num_qubits}b')
+                    number = i
                     projector = np.zeros((2 ** self.num_qubits, 2 ** self.num_qubits))
                     projector[i, i] = 1.0
-                    probs[bitstr] = np.real(np.trace(rho.data @ projector))
+                    probs[number] = np.real(np.trace(rho.data @ projector))
                 return probs
             
             case 'noisy_sampling' | 'quantum_backend':

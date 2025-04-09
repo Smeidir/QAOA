@@ -45,8 +45,8 @@ if ray.is_initialized():
 ray.init(log_to_driver=True)
 
 
-graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
-graphs.reverse()
+graphs= [problem.get_paper_graphs()]
+#graphs.reverse()
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
 

@@ -420,6 +420,7 @@ class QAOArunner():
         #TODO: support fior å finne flere av de mest sannsynlige?
         
         final_distribution_int = self.get_bitstring_probabilities()
+        print('final distribution int', final_distribution_int)
         #print(final_distribution_int)
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
@@ -427,8 +428,9 @@ class QAOArunner():
 
         keys = list(final_distribution_int.keys())
         values = list(final_distribution_int.values())
-
+        
         most_likely = keys[np.argmax(np.abs(values))]
+        print('most_likely', most_likely)
         most_likely_bitstring = to_bitstring(most_likely,self.num_qubits)
         most_likely_bitstring.reverse()
         return most_likely_bitstring
@@ -483,6 +485,7 @@ class QAOArunner():
 
             case 'density_matrix_simulation':
                 clean_circuit = self.remove_measurements(self.circuit)
+                clean_circuit.save_density_matrix()
                 result = self.backend.run(clean_circuit.assign_parameters(params)).result()
                 rho = DensityMatrix(result.data(0)['density_matrix'])
                 # Projectors in computational basis

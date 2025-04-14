@@ -30,7 +30,7 @@ if local:
 
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph, name):
-    qaoa = QAOArunner(graph, simulation=True, **parameters)
+    qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
     qaoa.run_no_optimizer()
     return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name,

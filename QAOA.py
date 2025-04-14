@@ -332,13 +332,13 @@ class QAOArunner():
                 tol = self.max_tol,
                 options={'disp': False, 'maxiter': 5000})
 
-            self.final_params = result.x
-            self.time_elapsed = time.time() -self.start_time
-            self.result = result
-            self.fev = result.nfev
-            #self.circuit = self.circuit.assign_parameters(self.result.x)
-            self.solution = self.calculate_solution()
-            self.objective_value = self.evaluate_sample()
+        self.final_params = result.x
+        self.time_elapsed = time.time() -self.start_time
+        self.result = result
+        self.fev = result.nfev
+        #self.circuit = self.circuit.assign_parameters(self.result.x)
+        self.solution = self.calculate_solution()
+        self.objective_value = self.evaluate_sample()
 
 
     def run_no_optimizer(self, n = 50):

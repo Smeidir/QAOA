@@ -213,11 +213,11 @@ class QAOArunner():
                 noise_model = NoiseModel.from_backend(FakeBrisbane())
                 self.backend = AerSimulator(method='density_matrix',
                                 noise_model=noise_model)
-                print("Running on: Density matrix simulator with noise")
+                #print("Running on: Density matrix simulator with noise")
 
             case 'noisy_sampling':
                 self.backend = AerSimulator.from_backend(FakeBrisbane())
-                print("Running on: AerSimulator with noise")
+                #print("Running on: AerSimulator with noise")
 
             case 'quantum_backend':
                 QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
@@ -484,7 +484,7 @@ class QAOArunner():
         #TODO: support fior å finne flere av de mest sannsynlige?
         
         final_distribution_int = self.get_bitstring_probabilities()
-        print('final distribution int', final_distribution_int)
+        #print('final distribution int', final_distribution_int)
         #print(final_distribution_int)
         def to_bitstring(integer, num_bits):
             result = np.binary_repr(integer, width=num_bits)
@@ -494,7 +494,6 @@ class QAOArunner():
         values = list(final_distribution_int.values())
         
         most_likely = keys[np.argmax(np.abs(values))]
-        print('most_likely', most_likely)
         most_likely_bitstring = to_bitstring(most_likely,self.num_qubits)
         most_likely_bitstring.reverse()
         return most_likely_bitstring
@@ -544,7 +543,6 @@ class QAOArunner():
                 clean_circuit = self.remove_measurements(self.circuit)
                 state = Statevector.from_instruction(clean_circuit.assign_parameters(params))
                 probs = {int(k, 2): v for k, v in state.probabilities_dict().items()}
-                print(probs)
                 return probs
 
             case 'density_matrix_simulation':

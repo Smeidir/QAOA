@@ -403,7 +403,7 @@ class QAOArunner():
         self.time_elapsed = time.time() -start_time
         self.result = best_result
         self.fev = n
-        self.circuit = self.circuit.assign_parameters(self.final_params)
+        #self.circuit = self.circuit.assign_parameters(self.final_params)
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_sample()
                  

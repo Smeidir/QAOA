@@ -372,7 +372,7 @@ class QAOArunner():
 
                 raise ValueError('Recursive not implemented for non-optimizer runs')
         
-        if self.simulation and not self.errors:
+        if self.backend_mode == 'statevector':
             start_time = time.time()
 
             results = [self.cost_func_statevector(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]

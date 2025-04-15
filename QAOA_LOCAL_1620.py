@@ -29,7 +29,6 @@ from scipy.optimize import minimize
 
 import params
 from solver import Solver
-from helper_functions import to_bitstring
 from qiskit.quantum_info import Clifford
 
 
@@ -42,17 +41,18 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2):
+    def __init__(self, graph, backend_mode = 'statevector', param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
+                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, 
+                 lagrangian_multiplier = 2):
         
         if qaoa_variant not in params.supported_qaoa_variants:
-            raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
+            raise ValueError(f'Non-supported param initializer. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
         if param_initialization not in params.supported_param_inits:
             raise ValueError(f'Non-supported param initializer. Your param: {param_initialization} not in supported parameters:{params.supported_param_inits}.')
         if optimizer not in params.supported_optimizers:
-            raise ValueError(f'Non-supported optimizer. Your param: {optimizer} not in supported parameters:{params.supported_optimizers}.')
+            raise ValueError(f'Non-supported param initializer. Your param: {optimizer} not in supported parameters:{params.supported_optimizers}.')
         if backend_mode not in params.supported_backends:
-            raise ValueError(f'Non-supported backend. Your param: {backend_mode} not in supported parameters:{params.supported_backends}.')
+            raise ValueError(f'Non-supported param initializer. Your param: {optimizer} not in supported parameters:{params.supported_backends}.')
       
         self.graph = graph
         self.backend_mode = backend_mode
@@ -70,7 +70,7 @@ class QAOArunner():
         self.lagrangian_multiplier = lagrangian_multiplier
         self.solver = Solver(self.graph, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) #use solver not to solve, but to get the qubo formulation - must not be relaxed!
         self.classical_solution,self.classical_objective_value = self.solver.solve()
-        self.fev = 0 #0 quantum function evals, yet. Must initialize to increment.
+        self.fev = 0 #0 quantum function evals, yet.
         self.num_qubits = len(self.graph.nodes())
         
 
@@ -80,46 +80,24 @@ class QAOArunner():
         updates self.: backend, circuit, cost_hamiltonian
         """
         conv = QuadraticProgramToQubo()
-        cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp()))
+        cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) #watch out - vertexcover only for vanilla no varm start!
+
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
+       # ['IIIIZ', 'IZIII', 'IIIZI', 'IIZII', 'ZIIII', 'IZIIZ', 'ZIIIZ', 'IIZZI', 'ZIIZI', 'ZIZII', 'ZZIII']], 
+       # np.array([1.5+0.j, 1.5+0.j, 1.5+0.j, 1.5+0.j, 3.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j,
+ #0.5+0.j, 0.5+0.j, 0.5+0.j], dtype=np.complex64))]
         self.build_backend()
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
 
-        if not self.warm_start:
-
-            if self.qaoa_variant =='vanilla':
-                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth, flatten=True)
-
-            elif self.qaoa_variant =='multiangle': 
-                multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
-                multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
-                qc = QuantumCircuit(self.num_qubits)
-                for _ in range(self.num_qubits): #initial state
-                    qc.h(_)
-                for i in range(self.depth):
-                    for idx, edge in enumerate(self.graph.edge_list()):
-                        qc.cx(edge[0], edge[1])
-                        qc.rz(multiangle_gammas[i][idx], edge[1])
-                        qc.cx(edge[0], edge[1])
-                    for idx in range(self.num_qubits):
-                        qc.rx(2*multiangle_betas[i][idx], idx)
-                qc.measure_all()
         
-            elif self.qaoa_variant =='recursive': #TODO: Fixx this
-                self.cum_fev = 0
-                opti = None
-                if self.optimizer == "COBYLA": opti = scipy_optimizer("COBYLA")
-                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend, options = {'shots': self.amount_shots}), 
-                                optimizer=opti, reps = self.depth, initial_point=self.get_init_params())                          
-                qaoa = MinimumEigenOptimizer(qaoa_mes) 
-                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
-     
-        if self.warm_start:
-            if self.qaoa_variant == 'vanilla':
-                initial_state = QuantumCircuit(self.num_qubits)
-                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
+        if self.qaoa_variant =='vanilla':
 
-                for qubit in range(self.num_qubits): 
+            if self.warm_start:
+                
+                initial_state = QuantumCircuit(self.num_qubits)
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(1) for x in self.classical_solution]
+ 
+                for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     initial_state.ry(thetas[qubit],qubit)
                 mixer_state = QuantumCircuit(self.num_qubits)
                 mixer_param = Parameter('β')
@@ -128,11 +106,22 @@ class QAOArunner():
                     mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
                     mixer_state.ry(-thetas[qubit],qubit)
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth, initial_state=initial_state, mixer_operator=mixer_state, flatten=True)
-            
-            elif self.qaoa_variant == 'multiangle':
+
+            else:
+                qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth)
+            qc.measure_all()
+
+
+        elif self.qaoa_variant =='multiangle': 
+            multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
+            multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
+            qc = QuantumCircuit(self.num_qubits)
+            if self.warm_start:
+                
+                solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
                 thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
 
-                for qubit in range(self.num_qubits): 
+                for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     qc.ry(thetas[qubit],qubit)
 
                 for i in range(self.depth):
@@ -145,10 +134,52 @@ class QAOArunner():
                         qc.rx(2*multiangle_betas[i][idx], idx)
                         qc.ry(-thetas[qubit],qubit)
 
-            elif self.qaoa_variant =='recursive': #TODO: Fixx this
-                raise ValueError('Recursive not implemented with warm start, due to inflexibility in qiskits recursive funcion.')
+            else:
+                for _ in range(self.num_qubits): #initial state
+                    qc.h(_)
+
+                for i in range(self.depth):
+                    for idx, edge in enumerate(self.graph.edge_list()):
+                        qc.cx(edge[0], edge[1])
+                        qc.rz(multiangle_gammas[i][idx], edge[1])
+                        qc.cx(edge[0], edge[1])
+                    for idx in range(self.num_qubits):
+                        qc.rx(2*multiangle_betas[i][idx], idx)
+            qc.measure_all()
+
+        elif self.qaoa_variant =='recursive': #TODO: Fixx this
+            self.cum_fev = 0
+            if self.warm_start:
+               
+                solution_values,_ = self.solver.solve() #solving this twice, not necessarily good. runs fast though
+                initial_state = QuantumCircuit(self.num_qubits)
+                thetas = 2*np.arcsin(np.sqrt(solution_values))
+                for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
+                    initial_state.ry(thetas[qubit],qubit)
+                mixer_state = QuantumCircuit(self.num_qubits)
+                mixer_param = Parameter('β')
+                for qubit in range(self.num_qubits):
+                    mixer_state.ry(thetas[qubit],qubit) 
+                    mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
+                    mixer_state.ry(-thetas[qubit],qubit)
+                opti = None
+                if self.optimizer == "COBYLA": opti = COBYLA()
+                if self.optimizer == "COBYQA": opti= COBYQA()
             
-        commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth) 
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend, options = {'shots': 1024}), optimizer=opti, reps = self.depth, initial_point=self.get_init_params(), 
+                                initial_state = initial_state, mixer = mixer_state,callback = self.recursive_callback)
+                qaoa = MinimumEigenOptimizer(qaoa_mes) 
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
+            else:
+                opti = None
+                if self.optimizer == "COBYLA": opti = COBYLA()
+                if self.optimizer == "COBYQA": opti= SciPyOptimizer(method = "COBYQA")
+                qaoa_mes = QAOA(sampler=BackendSampler(backend=self.backend, options = {'shots': 1024}), optimizer=opti, reps = self.depth, initial_point=self.get_init_params()
+                ,callback = self.recursive_callback)                          
+                qaoa = MinimumEigenOptimizer(qaoa_mes) 
+                self.rqaoa = RecursiveMinimumEigenOptimizer(qaoa, min_num_vars=3) #TODO: Find exact¨
+        
+        commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth) #TODO: enable this
         cost_operator = commutation_tester.cost_operator.to_operator()
         mixer_operator = Operator(commutation_tester.mixer_operator)
         commutator = cost_operator @ mixer_operator - mixer_operator @ cost_operator
@@ -157,12 +188,13 @@ class QAOArunner():
 
 
         ##TODO: Scheck if circuit is flattened
-
         if not self.qaoa_variant =='recursive':
             pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
             candidate_circuit = pm.run(qc)
             self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
+
+
 
     def print_problem(self):
         if self.solver:
@@ -175,7 +207,7 @@ class QAOArunner():
         match self.backend_mode:
         
             case 'statevector':
-                self.backend = StatevectorSimulator() 
+                self.backend = StatevectorSimulator() #FakeBrisbane is slow. For the test, where we onyl want to ensure stuff runs, we use a faster backend.
                 #print("You are running on the local StateVectorSimulator")
             case 'density_matrix_simulation':
                 noise_model = NoiseModel.from_backend(FakeBrisbane())
@@ -184,8 +216,7 @@ class QAOArunner():
                 #print("Running on: Density matrix simulator with noise")
 
             case 'noisy_sampling':
-                noise_model = NoiseModel.from_backend(FakeBrisbane())
-                self.backend = AerSimulator(noise_model=noise_model)
+                self.backend = AerSimulator.from_backend(FakeBrisbane())
                 #print("Running on: AerSimulator with noise")
 
             case 'quantum_backend':
@@ -201,9 +232,11 @@ class QAOArunner():
         param_cost_length = 1
         param_mixer_length = 1
 
+
         if self.qaoa_variant == "multiangle":
             param_cost_length = len(self.graph.edges())
             param_mixer_length = self.num_qubits
+
 
         match self.param_initialization: 
             case 'uniform':
@@ -247,14 +280,17 @@ class QAOArunner():
         self.start_time = time.time()
 
         if self.qaoa_variant == 'recursive':
-            result = self.rqaoa.solve(self.solver.get_qp())
-            self.fev += self.cum_fev
-            self.time_elapsed = time.time() -self.start_time
-            self.result = result
-            #self.circuit = self.rqaoa._optimizer hard to get the circuit out
-            self.solution = result.x
-            self.objective_value = result.fval
-            return 
+
+                result = self.rqaoa.solve(self.solver.get_qp())
+
+                self.fev += self.cum_fev
+                self.time_elapsed = time.time() -self.start_time
+                self.result = result
+                #self.circuit = self.rqaoa._optimizer hard to get the circuit out
+                self.solution = result.x
+                self.objective_value = result.fval
+                return 
+
 
 
         match self.backend_mode:
@@ -281,8 +317,13 @@ class QAOArunner():
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
 
-                self.set_error_mitigation(estimator)
-                isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) 
+                # Set simple error suppression/mitigation options
+                if self.backend_mode == 'quantum_backend':
+                    estimator.options.dynamical_decoupling.enable = True
+                    estimator.options.dynamical_decoupling.sequence_type = "XY4"
+                    estimator.options.twirling.enable_gates = True
+                    estimator.options.twirling.num_randomizations = "auto"
+                isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) #TODO: What does this actually do? - perhaps efficiency to be gained here?
                 result = minimize(
                 self.cost_func_estimator, 
                 init_params,
@@ -302,8 +343,10 @@ class QAOArunner():
 
     def run_no_optimizer(self, n = 50):
         self.objective_func_vals = []
+
         param_cost_length = 1
         param_mixer_length = 1
+
 
         if self.qaoa_variant == "multiangle":
             param_cost_length = len(self.graph.edges())
@@ -315,29 +358,38 @@ class QAOArunner():
                                     np.random.uniform(0, np.pi, param_mixer_length)])
                     for _ in range(self.depth)
                 ]).flatten() for i in range(n)]
+
                 
         self.runtimes = []
         self.start_time = time.time()
         if self.qaoa_variant == 'recursive':
-                raise ValueError('Recursive not implemented for non-optimizer runs.')
-        start_time = time.time()
-        match self.backend_mode:
-            case 'statevector':
+
+                raise ValueError('Recursive not implemented for non-optimizer runs')
         
-                results = [self.cost_func_statevector(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
+        if self.backend_mode == 'statevector':
+            start_time = time.time()
 
-            case 'density_matrix_simulation':
-                results = [self.cost_func_density_matrix(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
-                #TODO: is this slow due to read/write erros=
+            results = [self.cost_func_statevector(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
+
+
+        else:
             
-            case 'noisy_sampling'| 'quantum_backend' :
-                estimator = Estimator(mode=self.backend)
-                estimator.options.default_shots = self.amount_shots
-                self.set_error_mitigation(estimator)
-                start_time = time.time() #refresh time since estimator init can take time
-                results = [self.cost_func_estimator(init_param, self.circuit, self.cost_hamiltonian, estimator=estimator) for init_param in init_params]
+            estimator = Estimator(mode=self.backend)
+            estimator.options.default_shots = self.amount_shots
+            if not self.simulation: #self.errors and self.error_mitigation:
+                    # Set simple error suppression/mitigation options
+                    estimator.options.dynamical_decoupling.enable = True
+                    estimator.options.dynamical_decoupling.sequence_type = "XY4"
+                    estimator.options.twirling.enable_gates = True
+                    estimator.options.twirling.num_randomizations = "auto"
+            start_time = time.time()
+            results = [self.cost_func_estimator(init_param, self.circuit, self.cost_hamiltonian, estimator=estimator) for init_param in init_params]
 
-        best_result = np.min(results) #always min since the QAOA solves min energy
+
+   
+        best_result = np.min(results)
+       
+
         best_index = results.index(best_result)
         best_parameters = init_params[best_index]
 
@@ -348,12 +400,15 @@ class QAOArunner():
         #self.circuit = self.circuit.assign_parameters(self.final_params)
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_sample()
+                 
+
+        
 
     def evaluate_sample(self) -> float:
         assert len(self.solution) == len(list(self.graph.nodes())), "The length of x must coincide with the number of nodes in the graph."
         solution_value = self.solver.evaluate_bitstring(self.solution)
         return solution_value
-
+        #return sum(self.solution[u] * (1 - self.solution[v]) + self.solution[v] * (1 - self.solution[u]) for u, v in set(self.graph.edge_list()))
     def cost_func_estimator(self,params, ansatz, isa_hamiltonian, estimator):
         #TODO: see if this can be optimized
 
@@ -364,7 +419,6 @@ class QAOArunner():
         self.objective_func_vals.append(cost.item())
 
         return cost
-    
     def remove_measurements(self, circuit):
         """Return a new circuit with all measurements removed."""
         new_circuit = QuantumCircuit(circuit.num_qubits)
@@ -374,7 +428,6 @@ class QAOArunner():
         return new_circuit
         
     def cost_func_statevector(self, params, ansatz, hamiltonian):
-        
         clean_circuit = self.remove_measurements(ansatz)
         sv = Statevector.from_instruction(clean_circuit.assign_parameters(params))
         cost = np.real(sv.expectation_value(hamiltonian))
@@ -392,8 +445,12 @@ class QAOArunner():
     
     def prob_best_solution(self,params):
         #TODO: see if this can be optimized
-        
+        #transform observable defined on virtual qubits to an observable defined on all physical qubits
         final_distribution_int = self.get_bitstring_probabilities()
+
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
 
         keys = list(final_distribution_int.keys())
         values = np.array(list(final_distribution_int.values()))
@@ -429,6 +486,10 @@ class QAOArunner():
         final_distribution_int = self.get_bitstring_probabilities()
         #print('final distribution int', final_distribution_int)
         #print(final_distribution_int)
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
         keys = list(final_distribution_int.keys())
         values = list(final_distribution_int.values())
         
@@ -437,6 +498,33 @@ class QAOArunner():
         most_likely_bitstring.reverse()
         return most_likely_bitstring
     
+    def calculate_solution_internal(self, params): #TODO: må da finnes en lettere måte?
+        #TODO: support fior å finne flere av de mest sannsynlige?
+        
+        final_distribution_int = self.get_bitstring_probabilities()
+
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
+        keys = list(final_distribution_int.keys())
+        values = list(final_distribution_int.values())
+
+        most_likely = keys[np.argmax(np.abs(values))]
+        most_likely_bitstring = to_bitstring(most_likely,self.num_qubits)
+        most_likely_bitstring.reverse()
+        return most_likely_bitstring
+
+    def compare_solutions(self, classic_solution):
+        if not self.solution:
+            raise ReferenceError("Solution not initalized yet. run()-function must be called to generate solution before it can be compared.")
+        assert len(self.solution) == len(classic_solution[0]), 'Solutions not the same length.' #TODO: error relating to length of qubits for kcut which requires more qubits
+        bools = [a==b for a,b in zip(classic_solution[0],self.solution)]
+        bools_reversed =[a!=b for a,b in zip(classic_solution[0],self.solution)]
+        print("Result quantum", self.solution, "Objective value: ", self.objective_value)
+        print("Result input (classical)", classic_solution[0], "Objective Value: ", classic_solution[1])
+        print("Same solution", all(bools) or all(bools_reversed)) #same cut but different partitions
+        print("Same objective function value: ", classic_solution[1] == self.objective_value)
 
     def get_bitstring_probabilities(self, params=None):
         """
@@ -464,7 +552,7 @@ class QAOArunner():
                 rho = DensityMatrix(result.data(0)['density_matrix'])
                 # Projectors in computational basis
                 probs = {}
-                for i in range(2 ** self.num_qubits): #TODO: do this math by hand
+                for i in range(2 ** self.num_qubits):
                     number = i
                     projector = np.zeros((2 ** self.num_qubits, 2 ** self.num_qubits))
                     projector[i, i] = 1.0
@@ -475,21 +563,20 @@ class QAOArunner():
                 pub = (self.circuit,params)
                 sampler = Sampler(mode=self.backend)
                 sampler.options.default_shots = self.amount_shots
-                self.set_error_mitigation(sampler)
-                
+
+                if self.backend_mode == 'quantum_backend':
+                # Set simple error suppression/mitigation options
+                    sampler.options.dynamical_decoupling.enable = True
+                    sampler.options.dynamical_decoupling.sequence_type = "XY4"
+                    sampler.options.twirling.enable_gates = True
+                    sampler.options.twirling.num_randomizations = "auto"
+
                 job = sampler.run([pub])
                 counts_int = job.result()[0].data.meas.get_int_counts()
                 shots = sum(counts_int.values())
                 final_distribution_int = {key: val/shots for key, val in counts_int.items()}
                 return final_distribution_int
     
-
-    def set_error_mitigation(backend):
-        backend.options.dynamical_decoupling.enable = True
-        backend.options.dynamical_decoupling.sequence_type = "XY4"
-        backend.options.twirling.enable_gates = True
-        backend.options.twirling.num_randomizations = "auto"
-
     def get_job_custom_circuit(self, circuit):
         pub = (circuit,)
         sampler = Sampler(mode=self.backend)
@@ -497,33 +584,44 @@ class QAOArunner():
 
         if self.errors and self.error_mitigation:
         # Set simple error suppression/mitigation options
-            self.set_error_mitigation(sampler)
+            sampler.options.dynamical_decoupling.enable = True
+            sampler.options.dynamical_decoupling.sequence_type = "XY4"
+            sampler.options.twirling.enable_gates = True
+            sampler.options.twirling.num_randomizations = "auto"
 
         job = sampler.run([pub], shots=int(1e4))
         return job
 
-
-
-    def get_prob_measure_optimal(self):
+    def get_prob_most_likely_solution(self):
 
         final_distribution_int = self.get_bitstring_probabilities()
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return [int(digit) for digit in result]
+
         keys = list(final_distribution_int.keys())
         values = list(final_distribution_int.values())
-
+        
+        _,classical_value = self.solver.solve() #solving this twice, not necessarily good. runs fast though
         percent_chance_optimal = 0
         
         for i in range(len(keys)):
             bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
             value = self.solver.evaluate_bitstring(bitstring)
-            if value == self.classical_objective_value:
+            if value == classical_value:
                 #print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
                 percent_chance_optimal += values[i]
+        #print('keys:',keys)
+        #print('values:', values)
         return percent_chance_optimal
     
     def print_bitstrings(self):
         matplotlib.rcParams.update({"font.size": 10})
         final_distribution_int = self.get_bitstring_probabilities()
 
+        def to_bitstring(integer, num_bits):
+            result = np.binary_repr(integer, width=num_bits)
+            return result
         final_bits = {to_bitstring(k,self.num_qubits):v for k, v in final_distribution_int.items()}
         _, classical_value = self.solver.solve()
         values = np.abs(list(final_bits.values()))
@@ -551,4 +649,3 @@ class QAOArunner():
             else:
                 ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()
-        

@@ -303,7 +303,7 @@ class QAOArunner():
             
             estimator = Estimator(mode=self.backend)
             estimator.options.default_shots = self.amount_shots
-            if not self.simulation: #self.errors and self.error_mitigation:
+            if not  self.simulation: #self.errors and self.error_mitigation:
                     # Set simple error suppression/mitigation options
                     estimator.options.dynamical_decoupling.enable = True
                     estimator.options.dynamical_decoupling.sequence_type = "XY4"

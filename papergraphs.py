@@ -34,7 +34,7 @@ def parallell_runner(parameters, graph, name):
     qaoa.build_circuit()
     qaoa.run()
     return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name,
-         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'obj_func_evolution': qaoa.objective_func_vals,
+         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
         'classic_solution' : qaoa.classical_solution, 'classic_value': qaoa.classical_objective_value , 'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_most_likely_solution()
                         }
@@ -131,7 +131,7 @@ for task in unfinished:
 underway_df = pd.DataFrame(ray.get(result_ids))
 underway_df.to_csv(f'results/results_underway.csv', mode='a', header=False)
 data.extend(ray.get(result_ids))
-print(f'Done with Parameters: {settings} at time: {time.time()}')
+print(f'Done with Parameters: {settings} at time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
 
 
 df = pd.DataFrame(data)

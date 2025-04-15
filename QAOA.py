@@ -95,7 +95,8 @@ class QAOArunner():
             if self.warm_start:
                 
                 initial_state = QuantumCircuit(self.num_qubits)
-                thetas = [-np.pi/2 + (1-2*x)* np.arctan(1) for x in self.classical_solution]
+                
+                thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
  
                 for qubit in range(self.num_qubits): #TODO: must check if they are the correct indices - qubits on IBM might be opposite ordering
                     initial_state.ry(thetas[qubit],qubit)
@@ -216,7 +217,8 @@ class QAOArunner():
                 #print("Running on: Density matrix simulator with noise")
 
             case 'noisy_sampling':
-                self.backend = AerSimulator.from_backend(FakeBrisbane())
+                noise_model = NoiseModel.from_backend(FakeBrisbane())
+                self.backend = AerSimulator(noise_model=noise_model)
                 #print("Running on: AerSimulator with noise")
 
             case 'quantum_backend':
@@ -376,7 +378,7 @@ class QAOArunner():
             
             estimator = Estimator(mode=self.backend)
             estimator.options.default_shots = self.amount_shots
-            if not self.simulation: #self.errors and self.error_mitigation:
+            if not  self.simulation: #self.errors and self.error_mitigation:
                     # Set simple error suppression/mitigation options
                     estimator.options.dynamical_decoupling.enable = True
                     estimator.options.dynamical_decoupling.sequence_type = "XY4"
@@ -401,7 +403,74 @@ class QAOArunner():
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_sample()
                  
+        self.final_params = result.x
+        self.time_elapsed = time.time() -start_time
+        self.result = result
+        self.fev = result.nfev
+        self.circuit = self.circuit.assign_parameters(self.result.x)
+        self.solution = self.calculate_solution()
+        self.objective_value = self.evaluate_sample()
 
+    def run_no_optimizer(self, n = 50):
+        self.objective_func_vals = []
+
+        param_cost_length = 1
+        param_mixer_length = 1
+
+
+        if self.qaoa_variant == "multiangle":
+            param_cost_length = len(self.graph.edges())
+            param_mixer_length = self.num_qubits
+
+        init_params = [
+            np.concatenate([
+                    np.concatenate([np.random.uniform(0, 2*np.pi, param_cost_length), 
+                                    np.random.uniform(0, np.pi, param_mixer_length)])
+                    for _ in range(self.depth)
+                ]).flatten() for i in range(n)]
+
+                
+        self.runtimes = []
+        self.start_time = time.time()
+        if self.qaoa_variant == 'recursive':
+
+                raise ValueError('Recursive not implemented for non-optimizer runs')
+        
+        if self.simulation and not self.errors:
+            start_time = time.time()
+
+            results = [self.cost_func_statevector(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
+
+
+        else:
+            
+            estimator = Estimator(mode=self.backend)
+            estimator.options.default_shots = self.amount_shots
+            if not self.simulation: #self.errors and self.error_mitigation:
+                    # Set simple error suppression/mitigation options
+                    estimator.options.dynamical_decoupling.enable = True
+                    estimator.options.dynamical_decoupling.sequence_type = "XY4"
+                    estimator.options.twirling.enable_gates = True
+                    estimator.options.twirling.num_randomizations = "auto"
+            start_time = time.time()
+            results = [self.cost_func_estimator(init_param, self.circuit, self.cost_hamiltonian, estimator=estimator) for init_param in init_params]
+
+
+   
+        best_result = np.min(results)
+       
+
+        best_index = results.index(best_result)
+        best_parameters = init_params[best_index]
+
+        self.final_params = best_parameters
+        self.time_elapsed = time.time() -start_time
+        self.result = best_result
+        self.fev = n
+        self.circuit = self.circuit.assign_parameters(self.final_params)
+        self.solution = self.calculate_solution()
+        self.objective_value = self.evaluate_sample()
+        
         
 
     def evaluate_sample(self) -> float:

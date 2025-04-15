@@ -41,7 +41,6 @@ class MaxCutProblem():
             return graph
         
     def get_complete_graphs(self,sizes):
-
         return [rx.generators.complete_graph(size) for size in sizes]
     
     def get_test_graphs(self, n = 5):
@@ -67,7 +66,6 @@ class MaxCutProblem():
 
                         names.append(graph_str)
                         graphs.append(pygraph)
-                        
         return graphs, names
     
     def get_graph_by_name(self, name):
@@ -80,7 +78,6 @@ class MaxCutProblem():
 
         graph = all_graphs[all_names.index(name)]
         return graph
-
 
 
     def get_single_graphs(self):
@@ -109,6 +106,7 @@ class MaxCutProblem():
 
 
     def get_erdos_renyi_graphs(self,sizes):
+        #TODO: only replicatable if the same sizes are given in the same order.
         seed = 40
 
         rng = np.random.default_rng(seed)

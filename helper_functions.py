@@ -4,3 +4,6 @@ import numpy as np
 def to_bitstring(integer, num_bits): #helper function
     result = np.binary_repr(integer, width=num_bits)
     return [int(digit) for digit in result]
+def to_bitstring_str(integer, num_bits): #helper function
+    result = np.binary_repr(integer, width=num_bits)
+    return result

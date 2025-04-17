@@ -26,7 +26,8 @@ if not local:
     with open("test_settings.txt", "r") as f:
         settings = ast.literal_eval(f.read().strip())
 if local: 
-    settings = "strign"
+    settings = "[{'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': False, 'depth': 2, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'vertexcover': False}]" 
+    settings = ast.literal_eval(settings)
 
 @ray.remote(num_cpus = 4)
 def parallell_runner(parameters, graph, name):
@@ -72,7 +73,7 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 50
+n_times = 10
 all_combos *= n_times
 
 
@@ -142,9 +143,9 @@ yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
 body = f'Solstorm run -papergraph -  {parameter_string}'
-attachment = f'results_papergraph_{parameter_string}.csv'
+attachment = f'results/results_papergraph_{parameter_string}.csv'
 
-yag.send( subject=subject, contents=body, attachments=attachment)
+yag.send(subject=subject, contents=body, attachments=attachment)
 print("Email sent successfully!")
 yag.close()
 

@@ -44,6 +44,7 @@ todo master:
 - UOBYQA as optimizer
 - DOes QAOA even work? with classic parameters? 
 - Look into encoding multiple variables on one qubit https://arxiv.org/abs/2011.06535%20Quantum%20Random%20Access%20Codes%20for%20Boolean%20Functions
+- can you really rotate a cost funciton more than 2 pi?
 
 
 ineresting papers: 

@@ -3,19 +3,9 @@ from matplotlib import pyplot as plt
 import rustworkx as rx
 import numpy as np
 from qiskit_optimization.translators import from_docplex_mp, to_ising
-from qiskit_algorithms import QAOA, NumPyMinimumEigensolver
 from qiskit_algorithms.optimizers import COBYLA
-from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
-from qiskit.primitives import Sampler, BackendSamplerV2, BackendSampler #samplre is deprecated, but need it to run. Why?
 
 import networkx as nx
-
-import time
-import mystic
-from mystic.solvers import fmin
-from mystic.penalty import quadratic_inequality
-from mystic.constraints import as_constraint
-
 import cvxpy as cp
 
 from MaxCutProblem import MaxCutProblem
@@ -31,16 +21,13 @@ class Solver():
 
         """
         Initializes the model with the given problem, but does not solve.
-        If relaxed is set to true it changes the behaviour when solve is called. it will then find a local optima, 
-        as cplex cannot handle non-convex continous variables.
+        Lagrangian decides how to weight the constraints, if any.
         """
         self.vertexcover =vertexcover
         self.verbose = verbose
         if vertexcover:
             self.graph = graph
             self.model = Model(name="VertexCover")
-
-
             self.variables = self.model.binary_var_list(len(self.graph), name='x')
 
             objective = 0
@@ -51,11 +38,7 @@ class Solver():
             for var in self.variables:
                 objective += self.B*var
 
-            #for (i,j) in self.graph.edge_list(): 
-             #      self.model.add_constraint(self.A*(1- self.variables[i])*( 1-self.variables[j]) ==0, 'quad') # quadratic constraints to align with ising hamiltonian
-            #for (i,j) in self.graph.edge_list(): 
-            #    self.model.add_constraint(self.variables[i]+self.variables[j] >= 1) # corresponding non-quadratic constraint
-            for (i,j) in self.graph.edge_list():
+            for (i,j) in self.graph.edge_list(): #This is quadratic on purpose to make it align with a QUBO. Can be done linear 
                 objective += self.A*(1- self.variables[i])*( 1-self.variables[j])
 
             self.objective = objective
@@ -73,7 +56,6 @@ class Solver():
     
             for (i,j, w) in self.graph.weighted_edge_list():            
                 objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
-                # w is a numpy array ( becasue i use np to generate)
 
             self.objective = objective
             self.model.objective=objective
@@ -82,6 +64,8 @@ class Solver():
     def evaluate_bitstring(self, bitstring, mark_infeasible = False):
         """
         Evaluates the objective value for a given bitstring.
+        Does so based on what type of problem the solves is initialized for. 
+        Mark infeasible is for better plotting of solutions.
         """
         if self.vertexcover:
             is_infeasible = 0
@@ -101,11 +85,10 @@ class Solver():
     def get_qp(self):
         return from_docplex_mp(self.model)
 
-        
-
+    
     def solve(self):
         """
-        Solves the problem based on parameter relaxed.
+        Solves the problem as it is initialized in the solver.
         Returns bitstring, solution_value
         """
         if self.vertexcover:
@@ -130,9 +113,11 @@ class Solver():
             print(solution.get_objective_value(), bitstring)
         return bitstring, solution.get_objective_value()
 
-    def solve_relaxed(self, method):
+    def solve_relaxed(self, method = 'GW'):
+            """ Solves the relaxed version of a problem, where the X values are continous between 0 and 1. 
+            Method keyword is for future use with different relaxed solving methods. Default is Goemanns-Williamson."""
 
-            if 'method' == 'GW':
+            if method == 'GW':
                 W = np.zeros((len(self.graph), len(self.graph)))
                 for (i, j, w) in self.graph.weighted_edge_list():
                     W[i, j] = w
@@ -169,11 +154,10 @@ class Solver():
 
     def plot_result(self, bitstring):
         """
-        Plots graph of partition. Must be run after solve.
+        Plots graph of partition. If no bitstring is supplied, must be run after solve.
         """
         if not bitstring:
             bitstring = [int(var.solution_value) for var in self.variables]
-
 
         colors = ["tab:grey" if i == 0 else "tab:purple" for i in bitstring]
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
@@ -184,9 +168,7 @@ def format_qaoa_samples(samples, max_len: int = 10):
     qaoa_res = []
     for s in samples:
             qaoa_res.append(("".join([str(int(_)) for _ in s.x]), s.fval, s.probability))
-
     res = sorted(qaoa_res, key=lambda x: -x[1])[0:max_len]
-
     return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
 

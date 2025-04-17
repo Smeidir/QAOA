@@ -9,17 +9,14 @@ from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit.circuit.library import HGate, QAOAAnsatz
 from qiskit.primitives import BackendSampler
-from qiskit.providers.fake_provider import GenericBackendV2
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_aer import AerSimulator, StatevectorSimulator, Aer
 from qiskit_aer.noise import NoiseModel
 from qiskit_algorithms import QAOA
 from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
-from qiskit_algorithms.optimizers.scipy_optimizer import SciPyOptimizer
 from qiskit_ibm_runtime import EstimatorV2 as Estimator
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime import SamplerV2 as Sampler
-from qiskit_ibm_runtime import Session
 from qiskit_ibm_runtime.fake_provider import FakeBrisbane
 from qiskit_optimization.algorithms import (MinimumEigenOptimizer,
                                             RecursiveMinimumEigenOptimizer)
@@ -27,10 +24,12 @@ from qiskit_optimization.converters import QuadraticProgramToQubo
 from qiskit_optimization.translators import from_docplex_mp, to_ising
 from scipy.optimize import minimize
 
+
+
 import params
 from solver import Solver
-from helper_functions import to_bitstring
-from qiskit.quantum_info import Clifford
+from helper_functions import to_bitstring,to_bitstring_str
+
 
 
 class QAOArunner():
@@ -103,9 +102,8 @@ class QAOArunner():
                         qc.cx(edge[0], edge[1])
                     for idx in range(self.num_qubits):
                         qc.rx(2*multiangle_betas[i][idx], idx)
-                qc.measure_all()
         
-            elif self.qaoa_variant =='recursive': #TODO: Fixx this
+            if self.qaoa_variant =='recursive': #TODO: Fixx this
                 self.cum_fev = 0
                 opti = None
                 if self.optimizer == "COBYLA": opti = scipy_optimizer("COBYLA")
@@ -144,10 +142,10 @@ class QAOArunner():
                         qc.ry(thetas[qubit],qubit) 
                         qc.rx(2*multiangle_betas[i][idx], idx)
                         qc.ry(-thetas[qubit],qubit)
-
-            elif self.qaoa_variant =='recursive': #TODO: Fixx this
-                raise ValueError('Recursive not implemented with warm start, due to inflexibility in qiskits recursive funcion.')
             
+            if self.qaoa_variant =='recursive': #TODO: Fixx this
+                raise ValueError('Recursive not implemented with warm start, due to inflexibility in qiskits recursive funcion.')
+        qc.measure_all()
         commutation_tester = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth) 
         cost_operator = commutation_tester.cost_operator.to_operator()
         mixer_operator = Operator(commutation_tester.mixer_operator)
@@ -184,8 +182,8 @@ class QAOArunner():
                 #print("Running on: Density matrix simulator with noise")
 
             case 'noisy_sampling':
-                noise_model = NoiseModel.from_backend(FakeBrisbane())
-                self.backend = AerSimulator(noise_model=noise_model)
+                self.backend = AerSimulator.from_backend(FakeBrisbane())
+                
                 #print("Running on: AerSimulator with noise")
 
             case 'quantum_backend':
@@ -281,7 +279,8 @@ class QAOArunner():
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
 
-                self.set_error_mitigation(estimator)
+                if self.backend_mode == 'quantum_backend':
+                    self.set_error_mitigation(estimator)
                 isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) 
                 result = minimize(
                 self.cost_func_estimator, 
@@ -328,12 +327,13 @@ class QAOArunner():
 
             case 'density_matrix_simulation':
                 results = [self.cost_func_density_matrix(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
-                #TODO: is this slow due to read/write erros=
+                #TODO: is this slow due to read/write erros?
             
             case 'noisy_sampling'| 'quantum_backend' :
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
-                self.set_error_mitigation(estimator)
+                if self.backend_mode == 'quantum_backend':
+                    self.set_error_mitigation(estimator)
                 start_time = time.time() #refresh time since estimator init can take time
                 results = [self.cost_func_estimator(init_param, self.circuit, self.cost_hamiltonian, estimator=estimator) for init_param in init_params]
 
@@ -472,11 +472,11 @@ class QAOArunner():
                 return probs
             
             case 'noisy_sampling' | 'quantum_backend':
-                pub = (self.circuit,params)
+                bound_circuit = self.circuit.assign_parameters(params, inplace=False)
+                pub = (bound_circuit)
                 sampler = Sampler(mode=self.backend)
                 sampler.options.default_shots = self.amount_shots
                 self.set_error_mitigation(sampler)
-                
                 job = sampler.run([pub])
                 counts_int = job.result()[0].data.meas.get_int_counts()
                 shots = sum(counts_int.values())
@@ -484,22 +484,22 @@ class QAOArunner():
                 return final_distribution_int
     
 
-    def set_error_mitigation(backend):
+    def set_error_mitigation(self,backend):
         backend.options.dynamical_decoupling.enable = True
         backend.options.dynamical_decoupling.sequence_type = "XY4"
         backend.options.twirling.enable_gates = True
         backend.options.twirling.num_randomizations = "auto"
 
     def get_job_custom_circuit(self, circuit):
-        pub = (circuit,)
+        pub = (circuit,self.final_params,)
         sampler = Sampler(mode=self.backend)
         sampler.options.default_shots=self.amount_shots
 
-        if self.errors and self.error_mitigation:
+        if self.backend_mode == 'quantum_backend':
         # Set simple error suppression/mitigation options
             self.set_error_mitigation(sampler)
 
-        job = sampler.run([pub], shots=int(1e4))
+        job = sampler.run([pub])
         return job
 
 
@@ -511,27 +511,28 @@ class QAOArunner():
         values = list(final_distribution_int.values())
 
         percent_chance_optimal = 0
+        _,valuess = self.solver.solve()
         
         for i in range(len(keys)):
             bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
             value = self.solver.evaluate_bitstring(bitstring)
-            if value == self.classical_objective_value:
+            if value == valuess:
                 #print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
                 percent_chance_optimal += values[i]
+                
         return percent_chance_optimal
     
     def print_bitstrings(self):
         matplotlib.rcParams.update({"font.size": 10})
         final_distribution_int = self.get_bitstring_probabilities()
 
-        final_bits = {to_bitstring(k,self.num_qubits):v for k, v in final_distribution_int.items()}
-        _, classical_value = self.solver.solve()
+        final_bits = {to_bitstring_str(k,self.num_qubits):v for k, v in final_distribution_int.items()}
         values = np.abs(list(final_bits.values()))
         #top_4_values = sorted(values, reverse=True)[:4]
         positions = []
         for i,bitstr in enumerate(final_bits.keys()):
             bitstring = list(reversed([int(bit) for bit in bitstr]))
-            if self.solver.evaluate_bitstring(bitstring) == classical_value:
+            if self.solver.evaluate_bitstring(bitstring) == self.classical_objective_value:
                 positions.append(i)
            
         fig = plt.figure(figsize=(11, 6))

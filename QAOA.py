@@ -72,7 +72,7 @@ class QAOArunner():
         self.classical_solution,self.classical_objective_value = self.solver.solve()
         self.fev = 0 #0 quantum function evals, yet. Must initialize to increment.
         self.num_qubits = len(self.graph.nodes())
-        self.error_mitigation = False
+        self.error_mitigation = error_mitigation
         
     def build_circuit(self):
         """ 
@@ -281,7 +281,7 @@ class QAOArunner():
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
 
-                if self.backend_mode == 'quantum_backend':
+                if self.error_mitigation:
                     self.set_error_mitigation(estimator)
                 isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) 
                 result = minimize(

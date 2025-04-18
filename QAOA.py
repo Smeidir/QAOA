@@ -1,5 +1,5 @@
 import time
-
+import line_profiler
 import matplotlib
 from qiskit.quantum_info import Statevector, DensityMatrix,Operator, SparsePauliOp
 import numpy as np
@@ -29,6 +29,7 @@ from scipy.optimize import minimize
 import params
 from solver import Solver
 from helper_functions import to_bitstring,to_bitstring_str
+from MaxCutProblem import MaxCutProblem   #for testing purposes
 
 
 
@@ -42,7 +43,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2):
+                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, error_mitigation=False):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -71,8 +72,8 @@ class QAOArunner():
         self.classical_solution,self.classical_objective_value = self.solver.solve()
         self.fev = 0 #0 quantum function evals, yet. Must initialize to increment.
         self.num_qubits = len(self.graph.nodes())
+        self.error_mitigation = False
         
-
     def build_circuit(self):
         """ 
         Convert graph to a cplex-problem of k-cut ( default k=2) and gets ising hamiltonian from it. Creates a circuit.
@@ -236,7 +237,6 @@ class QAOArunner():
             self.cum_fev += self.fev #add amount last iteration  
         self.fev = xk[0]
 
-
     def run(self):
         self.objective_func_vals = []
         init_params = self.get_init_params()
@@ -254,17 +254,19 @@ class QAOArunner():
             self.objective_value = result.fval
             return 
 
-
+        
         match self.backend_mode:
 
             case 'statevector':
+                clean_circuit = self.remove_measurements(self.circuit)
                 result = minimize(
                 self.cost_func_statevector, 
                 init_params,
-                args= (self.circuit, self.cost_hamiltonian),
+                args= (clean_circuit, self.cost_hamiltonian),
                 method = self.optimizer,
                 tol = self.max_tol,
                 options={'disp': False, 'maxiter': 5000})
+
 
             case 'density_matrix_simulation':
                 result = minimize(
@@ -296,7 +298,7 @@ class QAOArunner():
         self.fev = result.nfev
         #self.circuit = self.circuit.assign_parameters(self.result.x)
         self.solution = self.calculate_solution()
-        self.objective_value = self.evaluate_sample()
+        self.objective_value = self.evaluate_solution()
 
 
     def run_no_optimizer(self, n = 50):
@@ -347,12 +349,22 @@ class QAOArunner():
         self.fev = n
         #self.circuit = self.circuit.assign_parameters(self.final_params)
         self.solution = self.calculate_solution()
-        self.objective_value = self.evaluate_sample()
+        self.objective_value = self.evaluate_solution()
 
-    def evaluate_sample(self) -> float:
+    def evaluate_solution(self) -> float:
+        """Gives the objective value of self.solution. Must be used after run."""
         assert len(self.solution) == len(list(self.graph.nodes())), "The length of x must coincide with the number of nodes in the graph."
         solution_value = self.solver.evaluate_bitstring(self.solution)
         return solution_value
+    
+    def remove_measurements(self, circuit):
+        """Return a new circuit with all measurements removed."""
+        new_circuit = QuantumCircuit(circuit.num_qubits)
+        for instruction in circuit.data:
+            if instruction.operation.name != "measure":
+                new_circuit.append(instruction.operation, instruction.qubits, instruction.clbits)
+        return new_circuit
+
 
     def cost_func_estimator(self,params, ansatz, isa_hamiltonian, estimator):
         #TODO: see if this can be optimized
@@ -365,18 +377,9 @@ class QAOArunner():
 
         return cost
     
-    def remove_measurements(self, circuit):
-        """Return a new circuit with all measurements removed."""
-        new_circuit = QuantumCircuit(circuit.num_qubits)
-        for instr, qargs, cargs in circuit.data:
-            if instr.name != "measure":
-                new_circuit.append(instr, qargs, cargs)
-        return new_circuit
-        
     def cost_func_statevector(self, params, ansatz, hamiltonian):
         
-        clean_circuit = self.remove_measurements(ansatz)
-        sv = Statevector.from_instruction(clean_circuit.assign_parameters(params))
+        sv = Statevector.from_instruction(ansatz.assign_parameters(params))
         cost = np.real(sv.expectation_value(hamiltonian))
         self.objective_func_vals.append(cost)
         return cost
@@ -476,7 +479,8 @@ class QAOArunner():
                 pub = (bound_circuit)
                 sampler = Sampler(mode=self.backend)
                 sampler.options.default_shots = self.amount_shots
-                self.set_error_mitigation(sampler)
+                if self.error_mitigation:
+                    self.set_error_mitigation(sampler)
                 job = sampler.run([pub])
                 counts_int = job.result()[0].data.meas.get_int_counts()
                 shots = sum(counts_int.values())
@@ -552,4 +556,71 @@ class QAOArunner():
             else:
                 ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()
-        
+
+if __name__ =='__main__':
+    
+    problem = MaxCutProblem()
+    graphs = problem.get_erdos_renyi_graphs([5,7,9])
+
+    graph = graphs[1]
+    quantum = QAOArunner(graph=graph, 
+                     backend_mode = 'statevector',
+                     param_initialization= 'gaussian',
+                     qaoa_variant='vanilla', 
+                     optimizer='COBYLA',
+                     warm_start=False,
+                     depth = 1,
+                     vertexcover=False,
+                     amount_shots = 1000,
+                     max_tol = 1e-2,
+                     lagrangian_multiplier=2
+                     )
+
+    quantum.build_circuit()
+    quantum.run()
+    quantum = QAOArunner(graph=graph, 
+                     backend_mode = 'statevector',
+                     param_initialization= 'gaussian',
+                     qaoa_variant='multiangle', 
+                     optimizer='COBYLA',
+                     warm_start=False,
+                     depth = 1,
+                     vertexcover=False,
+                     amount_shots = 1000,
+                     max_tol = 1e-2,
+                     lagrangian_multiplier=2
+                     )
+
+    quantum.build_circuit()
+    quantum.run()
+    quantum = QAOArunner(graph=graph, 
+                     backend_mode = 'statevector',
+                     param_initialization= 'gaussian',
+                     qaoa_variant='vanilla', 
+                     optimizer='COBYLA',
+                     warm_start=True,
+                     depth = 1,
+                     vertexcover=False,
+                     amount_shots = 1000,
+                     max_tol = 1e-2,
+                     lagrangian_multiplier=2
+                     )
+
+    quantum.build_circuit()
+    quantum.run()
+    quantum = QAOArunner(graph=graph, 
+                     backend_mode = 'statevector',
+                     param_initialization= 'gaussian',
+                     qaoa_variant='multiangle', 
+                     optimizer='COBYLA',
+                     warm_start=True,
+                     depth = 1,
+                     vertexcover=False,
+                     amount_shots = 1000,
+                     max_tol = 1e-2,
+                     lagrangian_multiplier=2
+                     )
+
+    quantum.build_circuit()
+    quantum.run()
+

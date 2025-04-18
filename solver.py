@@ -2,13 +2,12 @@ from docplex.mp.model import Model
 from matplotlib import pyplot as plt
 import rustworkx as rx
 import numpy as np
-from qiskit_optimization.translators import from_docplex_mp, to_ising
-from qiskit_algorithms.optimizers import COBYLA
+from qiskit_optimization.translators import from_docplex_mp
+
 
 import networkx as nx
 import cvxpy as cp
 
-from MaxCutProblem import MaxCutProblem
 
 class Solver():
     """
@@ -21,10 +20,12 @@ class Solver():
 
         """
         Initializes the model with the given problem, but does not solve.
+        Vertexcover is a boolean flag for if the problem is vertexcover, else it is maxcut.
         Lagrangian decides how to weight the constraints, if any.
         """
         self.vertexcover =vertexcover
         self.verbose = verbose
+
         if vertexcover:
             self.graph = graph
             self.model = Model(name="VertexCover")
@@ -38,7 +39,7 @@ class Solver():
             for var in self.variables:
                 objective += self.B*var
 
-            for (i,j) in self.graph.edge_list(): #This is quadratic on purpose to make it align with a QUBO. Can be done linear 
+            for (i,j) in self.graph.edge_list(): #This is quadratic on purpose to make it align with a QUBO. Can be done linearly 
                 objective += self.A*(1- self.variables[i])*( 1-self.variables[j])
 
             self.objective = objective
@@ -83,6 +84,7 @@ class Solver():
         return objective_value
     
     def get_qp(self):
+        """ Return a quadratic program using : from qiskit_optimization.translators import from_docplex_mp"""
         return from_docplex_mp(self.model)
 
     
@@ -162,14 +164,6 @@ class Solver():
         colors = ["tab:grey" if i == 0 else "tab:purple" for i in bitstring]
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
         rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
-
-
-def format_qaoa_samples(samples, max_len: int = 10):
-    qaoa_res = []
-    for s in samples:
-            qaoa_res.append(("".join([str(int(_)) for _ in s.x]), s.fval, s.probability))
-    res = sorted(qaoa_res, key=lambda x: -x[1])[0:max_len]
-    return [(_[0] + f": value: {_[1]:.3f}, probability: {1e2*_[2]:.1f}%") for _ in res]
 
 
 if __name__ == "__main__":

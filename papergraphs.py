@@ -1,24 +1,20 @@
 import itertools
 import time
-import params
 from QAOA import QAOArunner
-from datetime import date
 import pandas as pd
-from solver import Solver
 import ray
-import numpy as np
 import yagmail
-import logging
-
-
+import ast
+import networkx as nx
+from tqdm import tqdm
 from MaxCutProblem import MaxCutProblem
+
+
 problem = MaxCutProblem()
 
 with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
-import ast
-import networkx as nx
-from tqdm import tqdm
+
 
 local = False
 
@@ -48,21 +44,20 @@ ray.init(log_to_driver=True)
 
 
 graphs= [problem.get_paper_graphs()]
-#graphs.reverse()
+#graphs.reverse() - reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
 
 combos = [settings, graphs] #settings should be a list of dictionaries .
 
 
-# Convert graphs to networkx graphs and generate graph6 strings
+# Convert graphs to networkx graphs and generate graph6 strings, to have graph names. Is it better to save all edges? then weights arent lost
 graph6_strings = []
 for graph in graphs: #TODO: write graph6 decoder
 
     graph = nx.Graph(list(graph.edge_list())) 
     graph6_string = nx.to_graph6_bytes(graph).decode('utf-8').strip()
     graph6_strings.append(graph6_string)
-
 
 print('Graph6 strings', graph6_string)
 all_combos = list(itertools.product(*combos))
@@ -73,17 +68,15 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 50
+n_times = 20
 all_combos *= n_times
 
 
-
-#TODO: make dictionary
-print('len all_combos',len(all_combos))
-print(f'performing all {n_times} times')
+print('Amount of runs',len(all_combos))
+print(f'Wherein all instances are performed {n_times} times')
 
 
-print('Settings:', settings)
+print('Instances tested: ', settings)
 data = []
 parameter_set = []    
 
@@ -101,14 +94,15 @@ for key in keys:
         keys_with_differences.append(values)
 
 parameter_set = keys_with_differences
-print('parameter set', parameter_set)
+
 
 
 parameter_string = [str(x) + "_" for x in parameter_set]
 parameter_string = "".join(parameter_string)
 parameter_string = parameter_string[0:-1]
 
-print('parameter string', parameter_string)
+print('Parameter set', parameter_set)
+print('Parameter string, used for naming .csv files: ', parameter_string)
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph,name in all_combos]
 

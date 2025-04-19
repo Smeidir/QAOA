@@ -43,8 +43,8 @@ if ray.is_initialized():
 ray.init(log_to_driver=True)
 
 
-graphs= [problem.get_paper_graphs()]
-#graphs.reverse() - reverse if the largest graphs are the last!
+graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
+graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
 
@@ -68,7 +68,7 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 20
+n_times = 50
 all_combos *= n_times
 
 

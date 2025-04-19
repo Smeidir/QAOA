@@ -43,7 +43,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, error_mitigation=False):
+                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -72,8 +72,7 @@ class QAOArunner():
         self.classical_solution,self.classical_objective_value = self.solver.solve()
         self.fev = 0 #0 quantum function evals, yet. Must initialize to increment.
         self.num_qubits = len(self.graph.nodes())
-        self.error_mitigation = error_mitigation
-        
+
     def build_circuit(self):
         """ 
         Convert graph to a cplex-problem of k-cut ( default k=2) and gets ising hamiltonian from it. Creates a circuit.
@@ -223,8 +222,27 @@ class QAOArunner():
                 init_params =init_params.flatten()
                 return init_params
             case 'static':
-                init_params = np.array([[-0.2]*param_cost_length + [0.2]*param_mixer_length for _ in range(self.depth)]).flatten()
+                optimized_params_dict = {1: [-np.pi/6, -np.pi/8],
+                2: [-np.pi/6, -np.pi/8, -np.pi/4, -np.pi/13],
+                3: [-np.pi*0.12641,np.pi*0.15244,np.pi*-0.24101,np.pi*-0.10299,np.pi*-0.27459,np.pi*-0.06517 ]} #https://arxiv.org/pdf/2102.06813
+                if self.depth <= 3:
+                    init_params = optimized_params_dict[self.depth]
+                else:
+                    step_size = 0.8/(self.depth-1)
+                    final_values = 0.9/0.1
+                    init_params = np.array([[0.1 + n*step_size, 0.9-n*step_size] for n in range(0,self.depth)])
+                    init_params = init_params.flatten()
+
+                if self.qaoa_variant == 'multiangle':
+                    new_params = []
+                    for i, param in enumerate(init_params):
+                        if i%2 == 0: #cost parameter
+                            new_params.extend([param]*param_cost_length)
+                        else: #mixer parameter
+                            new_params.extend([param]*param_mixer_length)
+                    init_params = np.array(new_params)
                 return init_params
+                    
             case 'machinelearning':
                 raise NotImplementedError('Machine Learning not implemented yet. Use uniform or gaussian instead.') 
 
@@ -281,7 +299,7 @@ class QAOArunner():
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
 
-                if self.error_mitigation:
+                if self.backend_mode =='quantum_backend':
                     self.set_error_mitigation(estimator)
                 isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) 
                 result = minimize(
@@ -479,7 +497,7 @@ class QAOArunner():
                 pub = (bound_circuit)
                 sampler = Sampler(mode=self.backend)
                 sampler.options.default_shots = self.amount_shots
-                if self.error_mitigation:
+                if self.backend_mode == 'quantum_backend':
                     self.set_error_mitigation(sampler)
                 job = sampler.run([pub])
                 counts_int = job.result()[0].data.meas.get_int_counts()

@@ -88,7 +88,6 @@ class QAOArunner():
 
             if self.qaoa_variant =='vanilla':
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth, flatten=True)
-                print(qc.cost_operator)
 
             elif self.qaoa_variant =='multiangle': 
                 multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(cost_hamiltonian_tuples))] for l in range(self.depth)]

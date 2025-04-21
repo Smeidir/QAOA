@@ -88,18 +88,25 @@ class QAOArunner():
 
             if self.qaoa_variant =='vanilla':
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth, flatten=True)
+                print(qc.cost_operator)
 
             elif self.qaoa_variant =='multiangle': 
-                multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
+                multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(cost_hamiltonian_tuples))] for l in range(self.depth)]
                 multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
                 qc = QuantumCircuit(self.num_qubits)
                 for _ in range(self.num_qubits): #initial state
                     qc.h(_)
                 for i in range(self.depth):
-                    for idx, edge in enumerate(self.graph.edge_list()):
-                        qc.cx(edge[0], edge[1])
-                        qc.rz(multiangle_gammas[i][idx], edge[1])
-                        qc.cx(edge[0], edge[1])
+                    for idx, (pauli, coeff) in enumerate(cost_hamiltonian_tuples):
+                        z_placements = [i for i, interaction in enumerate(pauli) if interaction == 'Z']
+                        if len(z_placements) == 1:
+                            qc.rz(2*coeff*multiangle_gammas[i][idx], z_placements[0])
+                        elif len(z_placements) ==2:
+                            qc.cx(z_placements[0], z_placements[1])
+                            qc.rz(2*multiangle_gammas[i][idx], z_placements[1])
+                            qc.cx(z_placements[0], z_placements[1])
+                        else:
+                            raise ValueError('Amount of Z interactions in cost hamiltonian is over 2. You have', len(z_placements), 'interactions.')
                     for idx in range(self.num_qubits):
                         qc.rx(2*multiangle_betas[i][idx], idx)
         
@@ -123,27 +130,34 @@ class QAOArunner():
                 mixer_param = Parameter('β')
                 for qubit in range(self.num_qubits):
                     mixer_state.ry(thetas[qubit],qubit) 
-                    mixer_state.rz(mixer_param, qubit)# Assign a placeholder beta parameter 
+                    mixer_state.rz(2*mixer_param, qubit)# Assign a placeholder beta parameter 
                     mixer_state.ry(-thetas[qubit],qubit)
                 qc = QAOAAnsatz(cost_operator = cost_hamiltonian, reps = self.depth, initial_state=initial_state, mixer_operator=mixer_state, flatten=True)
             
             elif self.qaoa_variant == 'multiangle':
                 thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
-                multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
+                multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(cost_hamiltonian_tuples))] for l in range(self.depth)]
                 multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
                 qc = QuantumCircuit(self.num_qubits)
                 for qubit in range(self.num_qubits): 
                     qc.ry(thetas[qubit],qubit)
 
                 for i in range(self.depth):
-                    for idx, edge in enumerate(self.graph.edge_list()):
-                        qc.cx(edge[0], edge[1])
-                        qc.rz(multiangle_gammas[i][idx], edge[1])
-                        qc.cx(edge[0], edge[1])
+                    for idx, (pauli, coeff) in enumerate(cost_hamiltonian_tuples):
+                        z_placements = [i for i, interaction in enumerate(pauli) if interaction == 'Z']
+                        if len(z_placements) == 1:
+                            qc.rz(2*coeff*multiangle_gammas[i][idx], z_placements[0])
+                        elif len(z_placements) ==2:
+                            qc.cx(z_placements[0], z_placements[1])
+                            qc.rz(2*multiangle_gammas[i][idx], z_placements[1])
+                            qc.cx(z_placements[0], z_placements[1])
+                        else:
+                            raise ValueError('Amount of Z interactions in cost hamiltonian is over 2. You have', len(z_placements), 'interactions.')
                     for idx in range(self.num_qubits):
-                        qc.ry(thetas[qubit],qubit) 
+                        qc.ry(thetas[idx],qubit) 
                         qc.rx(2*multiangle_betas[i][idx], idx)
-                        qc.ry(-thetas[qubit],qubit)
+                        qc.ry(-thetas[idx],qubit)
+
             
             if self.qaoa_variant =='recursive': #TODO: Fixx this
                 raise ValueError('Recursive not implemented with warm start, due to inflexibility in qiskits recursive funcion.')
@@ -163,6 +177,7 @@ class QAOArunner():
             candidate_circuit = pm.run(qc)
             self.circuit = candidate_circuit
         self.cost_hamiltonian = cost_hamiltonian
+        
 
     def print_problem(self):
         if self.solver:
@@ -195,14 +210,18 @@ class QAOArunner():
                 print("Running on IBM quantum backend:", self.backend)
         
     def draw_circuit(self):
-        self.circuit.draw('mpl', fold=False, idle_wires=False)
+        fig = self.circuit.draw('mpl', fold=False, idle_wires=False)
+        plt.tight_layout()
+        plt.show()
+        return fig
 
     def get_init_params(self): 
         param_cost_length = 1
         param_mixer_length = 1
 
         if self.qaoa_variant == "multiangle":
-            param_cost_length = len(self.graph.edges())
+
+            param_cost_length = len(self.cost_hamiltonian)
             param_mixer_length = self.num_qubits
 
         match self.param_initialization: 
@@ -388,20 +407,23 @@ class QAOArunner():
 
     def cost_func_estimator(self,params, ansatz, isa_hamiltonian, estimator):
         #TODO: see if this can be optimized
-
+        begin_time = time.time()
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
         results = job.result()[0]
         cost = results.data.evs
         self.objective_func_vals.append(cost.item())
-
+        enclosing_scope_end_time = time.time()
+        self.runtimes.append(enclosing_scope_end_time-begin_time)
         return cost
     
     def cost_func_statevector(self, params, ansatz, hamiltonian):
-        
+        begin_time = time.time()
         sv = Statevector.from_instruction(ansatz.assign_parameters(params))
         cost = np.real(sv.expectation_value(hamiltonian))
         self.objective_func_vals.append(cost)
+        enclosing_scope_end_time = time.time()
+        self.runtimes.append(enclosing_scope_end_time-begin_time)
         return cost
     
     def cost_func_density_matrix(self, params, ansatz, hamiltonian):

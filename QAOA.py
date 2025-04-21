@@ -407,23 +407,23 @@ class QAOArunner():
 
     def cost_func_estimator(self,params, ansatz, isa_hamiltonian, estimator):
         #TODO: see if this can be optimized
-        begin_time = time.time()
+        #begin_time = time.time()
         pub = (ansatz, isa_hamiltonian, params)
         job = estimator.run([pub])
         results = job.result()[0]
         cost = results.data.evs
         self.objective_func_vals.append(cost.item())
-        enclosing_scope_end_time = time.time()
-        self.runtimes.append(enclosing_scope_end_time-begin_time)
+        #enclosing_scope_end_time = time.time()
+        #self.runtimes.append(enclosing_scope_end_time-begin_time)
         return cost
     
     def cost_func_statevector(self, params, ansatz, hamiltonian):
-        begin_time = time.time()
+        #begin_time = time.time()
         sv = Statevector.from_instruction(ansatz.assign_parameters(params))
         cost = np.real(sv.expectation_value(hamiltonian))
         self.objective_func_vals.append(cost)
-        enclosing_scope_end_time = time.time()
-        self.runtimes.append(enclosing_scope_end_time-begin_time)
+        #enclosing_scope_end_time = time.time()
+        #self.runtimes.append(enclosing_scope_end_time-begin_time)
         return cost
     
     def cost_func_density_matrix(self, params, ansatz, hamiltonian):

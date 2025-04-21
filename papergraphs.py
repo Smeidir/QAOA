@@ -30,7 +30,7 @@ def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
     qaoa.run()
-    return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name,
+    return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name, #TODO: move into QAOArunner class
          'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'ratio' : qaoa.objective_value/qaoa.classical_objective_value,
         'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
         'classic_solution' : qaoa.classical_solution, 'classic_value': qaoa.classical_objective_value , 

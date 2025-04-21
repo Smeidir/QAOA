@@ -59,7 +59,7 @@ for graph in graphs: #TODO: write graph6 decoder
     graph6_string = nx.to_graph6_bytes(graph).decode('utf-8').strip()
     graph6_strings.append(graph6_string)
 
-print('Graph6 strings', graph6_string)
+print('Graph6 strings of the graphs tested: ', graph6_strings)
 all_combos = list(itertools.product(*combos))
 
 combos_with_name = []
@@ -111,7 +111,7 @@ unfinished = futures
 
 with tqdm(total=len(futures), desc="Processing tasks") as pbar:
     start_time = time.time()
-    max_runtime = 3 * 24 * 60 * 60  # 3 days in seconds
+    max_runtime = 5 * 24 * 60 * 60  # 5 days in seconds
 
     while unfinished:
         if time.time() - start_time > max_runtime:

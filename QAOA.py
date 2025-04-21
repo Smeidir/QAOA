@@ -129,7 +129,9 @@ class QAOArunner():
             
             elif self.qaoa_variant == 'multiangle':
                 thetas = [-np.pi/2 + (1-2*x)* np.arctan(0.4) for x in self.classical_solution]
-
+                multiangle_gammas = [[Parameter(f'γ_{l}_{i}') for i in range(len(self.graph.edges()))] for l in range(self.depth)]
+                multiangle_betas = [[Parameter(f'β_{l}_{i}') for i in range(self.num_qubits)] for l in range(self.depth)]
+                qc = QuantumCircuit(self.num_qubits)
                 for qubit in range(self.num_qubits): 
                     qc.ry(thetas[qubit],qubit)
 

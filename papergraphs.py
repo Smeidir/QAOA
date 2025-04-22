@@ -1,13 +1,13 @@
 import itertools
 import time
-from QAOA import QAOArunner
+from src.qaoa.core.QAOA import QAOArunner
 import pandas as pd
 import ray
 import yagmail
 import ast
 import networkx as nx
 from tqdm import tqdm
-from MaxCutProblem import MaxCutProblem
+from src.qaoa.models.MaxCutProblem import MaxCutProblem
 
 
 problem = MaxCutProblem()
@@ -19,7 +19,7 @@ with open("email_credentials.txt", "r") as f:
 local = False
 
 if not local:
-    with open("test_settings.txt", "r") as f:
+    with open("qaoa_settings.txt", "r") as f:
         settings = ast.literal_eval(f.read().strip())
 if local: 
     settings = "[{'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': False, 'depth': 2, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'vertexcover': False}]" 
@@ -30,12 +30,9 @@ def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
     qaoa.run()
-    return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name, #TODO: move into QAOArunner class
-         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'ratio' : qaoa.objective_value/qaoa.classical_objective_value,
-        'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : qaoa.classical_solution, 'classic_value': qaoa.classical_objective_value , 
-        'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_measure_optimal()
-                        }
+    return_dict = qaoa.to_dict()
+    return_dict['graph_name'] = name
+    return return_dict
 
 if ray.is_initialized():
     ray.shutdown()

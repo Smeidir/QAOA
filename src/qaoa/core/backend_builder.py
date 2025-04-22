@@ -1,0 +1,32 @@
+from qiskit_aer import AerSimulator, StatevectorSimulator, Aer
+from qiskit_aer.noise import NoiseModel
+from qiskit_ibm_runtime import QiskitRuntimeService
+from qiskit_ibm_runtime.fake_provider import FakeBrisbane
+
+def get_backend(mode, amount_shots=1000, verbose=False):
+    match mode:
+        case 'statevector':
+            backend = StatevectorSimulator() 
+            if verbose:
+                print("You are running on the local StateVectorSimulator")
+        case 'density_matrix_simulation':
+            noise_model = NoiseModel.from_backend(FakeBrisbane())
+            backend = AerSimulator(method='density_matrix',
+                            noise_model=noise_model)
+            if verbose:
+                print("Running on: Density matrix simulator with noise")
+
+        case 'noisy_sampling':
+            backend = AerSimulator.from_backend(FakeBrisbane())
+            if verbose:
+                print("Running on: AerSimulator with noise")
+
+        case 'quantum_backend':
+            QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)
+            service = QiskitRuntimeService(channel='ibm_quantum')
+            backend = service.least_busy(min_num_qubits=127)
+            if verbose:
+                print("Running on IBM quantum backend:", backend)
+    
+    return backend  # Added missing return statement
+        

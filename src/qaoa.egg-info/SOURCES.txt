@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/MaxCutProblem.py
+src/QAOA.py
+src/graphNN.py
+src/helper_functions.py
+src/papergraphs.py
+src/qaoa.egg-info/PKG-INFO
+src/qaoa.egg-info/SOURCES.txt
+src/qaoa.egg-info/dependency_links.txt
+src/qaoa.egg-info/requires.txt
+src/qaoa.egg-info/top_level.txt
+tests/test_qaoa.py
+tests/test_runner.py
+tests/test_solver.py

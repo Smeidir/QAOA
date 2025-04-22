@@ -3,12 +3,12 @@ from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.fake_provider import FakeBrisbane
 
-def get_backend(mode, amount_shots=1000, verbose=False):
+def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':
-            backend = StatevectorSimulator() 
+            backend = AerSimulator(method="statevector")
             if verbose:
-                print("You are running on the local StateVectorSimulator")
+                print("You are running on the local ", backend.name)
         case 'density_matrix_simulation':
             noise_model = NoiseModel.from_backend(FakeBrisbane())
             backend = AerSimulator(method='density_matrix',

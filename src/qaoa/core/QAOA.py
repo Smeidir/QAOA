@@ -4,31 +4,22 @@ from qiskit.quantum_info import Statevector, DensityMatrix,Operator, SparsePauli
 import numpy as np
 import rustworkx as rx
 from matplotlib import pyplot as plt
-from qiskit import QuantumCircuit
-from qiskit.circuit import Parameter
 from qiskit.circuit.library import HGate, QAOAAnsatz
-
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-
-from qiskit_algorithms import QAOA
-from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
 from qiskit_ibm_runtime import EstimatorV2 as Estimator
-
 from qiskit_ibm_runtime import SamplerV2 as Sampler
-
-
 from qiskit_optimization.converters import QuadraticProgramToQubo
-from qiskit_optimization.translators import from_docplex_mp, to_ising
+from qiskit_optimization.translators import to_ising
 from scipy.optimize import minimize
-
-
 from qaoa.models import params
 from qaoa.core.parameter_init import get_init_params
 from qaoa.core.backend_builder import get_backend
 from qaoa.models.solver import Solver
 from qaoa.utils.helper_functions import to_bitstring,to_bitstring_str
-from qaoa.models.MaxCutProblem import MaxCutProblem
-from qaoa.core.ansatz_constructor import build_ansatz   #for testing purposes
+from qaoa.core.ansatz_constructor import build_ansatz 
+from qaoa.core.optimizer_strategies import (
+    NoOptimizerStrategy, StatevectorOptimizer, DensityMatrixOptimizer, EstimatorOptimizer
+)
 
 
 
@@ -42,7 +33,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2):
+                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, hamming_dist = 0):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -73,6 +64,7 @@ class QAOArunner():
         self.num_qubits = len(self.graph.nodes())
         self.objective_func_vals = []
         self.runtimes = []
+        self.hamming_dist = hamming_dist
 
     def to_dict(self):
         """
@@ -98,7 +90,8 @@ class QAOArunner():
             'classic_solution': self.classical_solution, 
             'classic_value': self.classical_objective_value, 
             'final_params': self.final_params, 
-            'percent_measure_optimal': self.get_prob_measure_optimal()
+            'percent_measure_optimal': self.get_prob_measure_optimal(),
+            'hamming_dist': self.hamming_dist
         }
 
     def build_circuit(self):
@@ -128,6 +121,7 @@ class QAOArunner():
         
         
     def check_operator_commutation(self, cost_hamiltonian):
+
         """
         Checks if the cost Hamiltonian and mixer Hamiltonian commute.
         Raises an ArithmeticError if the operators commute since this would make QAOA ineffective.
@@ -173,72 +167,31 @@ class QAOArunner():
         else:
             return get_init_params(self.param_initialization, self.depth)
 
-    def callback_function(self, xk):
-        print(f'Current solution: {xk} Current Objective value_{self.objective_func_vals[-1]}')
-        
-    def recursive_callback(self, *xk):
-        if xk[0] == 1: #started new iteration
-            self.cum_fev += self.fev #add amount last iteration  
-        self.fev = xk[0]
-
+    def _select_optimizer_strategy(self):
+        match self.backend_mode:
+            case 'statevector':
+                return StatevectorOptimizer(self.optimizer, self.max_tol, self.backend)
+            case 'density_matrix_simulation':
+                return DensityMatrixOptimizer(self.optimizer, self.max_tol, self.backend)
+            case 'noisy_sampling' | 'quantum_backend':
+                mitigation_fn = self._set_error_mitigation if self.backend_mode == 'quantum_backend' else None
+                return EstimatorOptimizer(
+                    self.optimizer, self.max_tol, backend=self.backend,
+                    shots=self.amount_shots, mitigation_fn=mitigation_fn)
+            case _:
+                raise ValueError(f"Unsupported backend mode: {self.backend_mode}")
     def run(self):
         
         init_params = self.get_initial_params()
-        
         self.start_time = time.time()
 
-        if self.qaoa_variant == 'recursive':
-            result = self.rqaoa.solve(self.solver.get_qp())
-            self.fev += self.cum_fev
-            self.time_elapsed = time.time() -self.start_time
-            self.result = result
-            #self.circuit = self.rqaoa._optimizer hard to get the circuit out
-            self.solution = result.x
-            self.objective_value = result.fval
-            return 
-
-        
-        match self.backend_mode:
-
-            case 'statevector':
-                result = minimize(
-                self.cost_func_statevector, 
-                init_params,
-                args= (self.circuit, self.cost_hamiltonian),
-                method = self.optimizer,
-                tol = self.max_tol,
-                options={'disp': False, 'maxiter': 5000})
-
-
-            case 'density_matrix_simulation':
-                result = minimize(
-                self.cost_func_density_matrix, 
-                init_params,
-                args= (self.circuit, self.cost_hamiltonian),
-                method = self.optimizer,
-                tol = self.max_tol,
-                options={'disp': False, 'maxiter': 5000})
-            
-            case 'noisy_sampling'| 'quantum_backend' :
-                estimator = Estimator(mode=self.backend)
-                estimator.options.default_shots = self.amount_shots
-
-                if self.backend_mode =='quantum_backend':
-                    self.set_error_mitigation(estimator)
-                isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) 
-                result = minimize(
-                self.cost_func_estimator, 
-                init_params,
-                args= (self.circuit, isa_hamiltonian, estimator),
-                method = self.optimizer,
-                tol = self.max_tol,
-                options={'disp': False, 'maxiter': 5000})
-
+        strategy = self._select_optimizer_strategy()
+        result = strategy.minimize(init_params, self.circuit, self.cost_hamiltonian)
         self.final_params = result.x
         self.time_elapsed = time.time() -self.start_time
         self.result = result
         self.fev = result.nfev
-        #self.circuit = self.circuit.assign_parameters(self.result.x)
+
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_solution()
 
@@ -260,26 +213,9 @@ class QAOArunner():
                 ]).flatten() for i in range(n)]
                 
         self.runtimes = []
-        self.start_time = time.time()
-        if self.qaoa_variant == 'recursive':
-                raise ValueError('Recursive not implemented for non-optimizer runs.')
         start_time = time.time()
-        match self.backend_mode:
-            case 'statevector':
-        
-                results = [self.cost_func_statevector(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
-
-            case 'density_matrix_simulation':
-                results = [self.cost_func_density_matrix(init_param, self.circuit, self.cost_hamiltonian) for init_param in init_params]
-                #TODO: is this slow due to read/write erros?
-            
-            case 'noisy_sampling'| 'quantum_backend' :
-                estimator = Estimator(mode=self.backend)
-                estimator.options.default_shots = self.amount_shots
-                if self.backend_mode == 'quantum_backend':
-                    self.set_error_mitigation(estimator)
-                start_time = time.time() #refresh time since estimator init can take time
-                results = [self.cost_func_estimator(init_param, self.circuit, self.cost_hamiltonian, estimator=estimator) for init_param in init_params]
+        strategy = NoOptimizerStrategy(mode=self.backend_mode, backend= self.backend, shots = self.amount_shots) 
+        results = [strategy.evaluate(params=param, circuit=self.circuit, hamiltonian=self.cost_hamiltonian) for param in init_params]
 
         best_result = np.min(results) #always min since the QAOA solves min energy
         best_index = results.index(best_result)
@@ -289,7 +225,7 @@ class QAOArunner():
         self.time_elapsed = time.time() -start_time
         self.result = best_result
         self.fev = n
-        #self.circuit = self.circuit.assign_parameters(self.final_params)
+
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_solution()
 
@@ -299,39 +235,23 @@ class QAOArunner():
         solution_value = self.solver.evaluate_bitstring(self.solution)
         return solution_value
 
-    def cost_func_estimator(self,params, ansatz, isa_hamiltonian, estimator):
-        #TODO: see if this can be optimized
-        #begin_time = time.time()
-        pub = (ansatz, isa_hamiltonian, params)
-        job = estimator.run([pub])
-        results = job.result()[0]
-        cost = results.data.evs
-        self.objective_func_vals.append(cost.item())
-        #enclosing_scope_end_time = time.time()
-        #self.runtimes.append(enclosing_scope_end_time-begin_time)
-        return cost
-    
-    def cost_func_statevector(self, params, ansatz, hamiltonian):
-        #begin_time = time.time()
-        sv = Statevector.from_instruction(ansatz.assign_parameters(params))
-        cost = np.real(sv.expectation_value(hamiltonian))
-        self.objective_func_vals.append(cost)
-        #enclosing_scope_end_time = time.time()
-        #self.runtimes.append(enclosing_scope_end_time-begin_time)
-        return cost
-    
-    def cost_func_density_matrix(self, params, ansatz, hamiltonian):
-        ansatz.save_density_matrix()
-        result = self.backend.run(ansatz).result()
-        rho = DensityMatrix(result.data(0)['density_matrix'])
-        cost = np.real(rho.expectation_value(hamiltonian))
-        self.objective_func_vals.append(cost)
-        return cost
-    
-    def _get_warm_start_thetas(self):
-        return [-np.pi/2 + (1 - 2 * x) * np.arctan(0.4) for x in self.classical_solution]
 
     
+    def _get_warm_start_thetas(self):
+        bias = 0.4
+        modified_solution = self.classical_solution.copy()
+        if self.hamming_dist > 0:
+            # Choose random indexes to flip
+            indexes_to_flip = np.random.choice(
+                range(len(self.classical_solution)), 
+                size=self.hamming_dist, 
+                replace=False
+            )
+            for index in indexes_to_flip:
+                modified_solution[index] = 1 - modified_solution[index]  # Flip 0->1 or 1->0
+
+        return [-np.pi/2 + (1 - 2 * x) * np.arctan(bias) for x in modified_solution]
+
     def prob_best_solution(self,params):
         #TODO: see if this can be optimized
         
@@ -392,42 +312,12 @@ class QAOArunner():
             raise ValueError('No parameters passed, and no final_params logged from an optimizer run. Please run the QAOA class or provide a parameter set.')
         params = params if params else self.final_params
         
-        match self.backend_mode:
-            case 'statevector':
-                
-                state = Statevector.from_instruction(self.circuit.assign_parameters(params))
-                probs = {int(k, 2): v for k, v in state.probabilities_dict().items()}
-                return probs
-
-            case 'density_matrix_simulation':
-                
-                self.circuit.save_density_matrix()
-                result = self.backend.run(self.circuit.assign_parameters(params)).result()
-                rho = DensityMatrix(result.data(0)['density_matrix'])
-                # Projectors in computational basis
-                probs = {}
-                for i in range(2 ** self.num_qubits): #TODO: do this math by hand
-                    number = i
-                    projector = np.zeros((2 ** self.num_qubits, 2 ** self.num_qubits))
-                    projector[i, i] = 1.0
-                    probs[number] = np.real(np.trace(rho.data @ projector))
-                return probs
-            
-            case 'noisy_sampling' | 'quantum_backend':
-                bound_circuit = self.circuit.assign_parameters(params, inplace=False)
-                pub = (bound_circuit)
-                sampler = Sampler(mode=self.backend)
-                sampler.options.default_shots = self.amount_shots
-                if self.backend_mode == 'quantum_backend':
-                    self.set_error_mitigation(sampler)
-                job = sampler.run([pub])
-                counts_int = job.result()[0].data.meas.get_int_counts()
-                shots = sum(counts_int.values())
-                final_distribution_int = {key: val/shots for key, val in counts_int.items()}
-                return final_distribution_int
+        strategy = NoOptimizerStrategy(mode=self.backend_mode, backend=self.backend)
+        bitstring_probs = strategy.get_bitstring_probabilities(params, self.circuit)
+        return bitstring_probs
     
 
-    def set_error_mitigation(self,backend):
+    def _set_error_mitigation(self,backend):
         backend.options.dynamical_decoupling.enable = True
         backend.options.dynamical_decoupling.sequence_type = "XY4"
         backend.options.twirling.enable_gates = True

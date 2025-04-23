@@ -16,13 +16,13 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = False
+local = True
 
 if not local:
     with open("test_settings.txt", "r") as f:
         settings = ast.literal_eval(f.read().strip())
 if local: 
-    settings = "[{'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': False, 'depth': 2, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'vertexcover': False}]" 
+    settings = "[{'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': True}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': True}]"
     settings = ast.literal_eval(settings)
 
 @ray.remote(num_cpus = 4)

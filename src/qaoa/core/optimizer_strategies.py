@@ -33,23 +33,6 @@ class StatevectorOptimizer(QAOAOptimizerStrategy):
                         tol=self.tol, options={'maxiter': maxiter})
 
 
-class DensityMatrixOptimizer(QAOAOptimizerStrategy):
-    def __init__(self, optimizer, tol, backend):
-        super().__init__(optimizer, tol)
-        self.backend = backend
-
-    def minimize(self, init_params, circuit, hamiltonian):
-        def cost_func(params):
-            circuit.save_density_matrix()
-            result = self.backend.run(circuit.assign_parameters(params)).result()
-
-            rho = DensityMatrix(result.data(0)['density_matrix'])
-            cost = np.real(rho.expectation_value(hamiltonian))
-            return cost
-
-        return minimize(cost_func, init_params, method=self.optimizer,
-                        tol=self.tol, options={'maxiter': maxiter})
-
 
 class EstimatorOptimizer(QAOAOptimizerStrategy):
     def __init__(self, optimizer, tol, backend, shots, mitigation_fn=None):
@@ -89,11 +72,6 @@ class NoOptimizerStrategy(QAOAOptimizerStrategy):
             sv = Statevector.from_instruction(circuit.assign_parameters(params))
             return np.real(sv.expectation_value(hamiltonian))
 
-        elif self.mode == "density_matrix_simulation":
-            circuit.save_density_matrix()
-            result = self.backend.run(circuit.assign_parameters(params)).result()
-            rho = DensityMatrix(result.data(0)['density_matrix'])
-            return np.real(rho.expectation_value(hamiltonian))
 
         elif self.mode in {"noisy_sampling", "quantum_backend"}:
             
@@ -117,19 +95,6 @@ class NoOptimizerStrategy(QAOAOptimizerStrategy):
             probs = {int(k, 2): v for k, v in state.probabilities_dict().items()}
             return probs
 
-        elif self.mode == "density_matrix_simulation":
-            circuit.save_density_matrix()
-            result = self.backend.run(circuit.assign_parameters(params)).result()
-
-            rho = DensityMatrix(result.data(0)['density_matrix'])
-            # Projectors in computational basis
-            probs = {}
-            for i in range(2 ** self.num_qubits): #TODO: do this math by hand
-                number = i
-                projector = np.zeros((2 ** self.num_qubits, 2 ** self.num_qubits))
-                projector[i, i] = 1.0
-                probs[number] = np.real(np.trace(rho.data @ projector))
-            return probs
 
         elif self.mode in {"noisy_sampling", "quantum_backend"}:
             circuit = circuit.assign_parameters(params)

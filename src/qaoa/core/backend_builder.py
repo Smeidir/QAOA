@@ -9,12 +9,6 @@ def get_backend(mode, amount_shots=5000, verbose=False):
             backend = AerSimulator(method="statevector")
             if verbose:
                 print("You are running on the local ", backend.name)
-        case 'density_matrix_simulation':
-            noise_model = NoiseModel.from_backend(FakeBrisbane())
-            backend = AerSimulator(method='density_matrix',
-                            noise_model=noise_model)
-            if verbose:
-                print("Running on: Density matrix simulator with noise")
 
         case 'noisy_sampling':
             backend = AerSimulator.from_backend(FakeBrisbane())

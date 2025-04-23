@@ -171,8 +171,6 @@ class QAOArunner():
         match self.backend_mode:
             case 'statevector':
                 return StatevectorOptimizer(self.optimizer, self.max_tol, self.backend)
-            case 'density_matrix_simulation':
-                return DensityMatrixOptimizer(self.optimizer, self.max_tol, self.backend)
             case 'noisy_sampling' | 'quantum_backend':
                 mitigation_fn = self._set_error_mitigation if self.backend_mode == 'quantum_backend' else None
                 return EstimatorOptimizer(
@@ -304,7 +302,7 @@ class QAOArunner():
         """
         Returns a dictionary of bitstring probabilities from the current circuit.
         In sampling modes: returns normalized counts from sampling.
-        In statevector/density matrix: returns exact probabilities.
+        In statevector matrix: returns exact probabilities.
         Optional to pass a set of parameters to test the qaoa on.
         """
   

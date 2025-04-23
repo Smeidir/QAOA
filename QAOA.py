@@ -14,10 +14,10 @@ from qiskit_aer import AerSimulator, StatevectorSimulator, Aer
 from qiskit_aer.noise import NoiseModel
 from qiskit_algorithms import QAOA
 from qiskit_algorithms.optimizers import COBYLA, scipy_optimizer
-from qiskit_ibm_runtime import EstimatorV2 as Estimator
+from qiskit_ibm_runtime import EstimatorV2 as Estimator,EstimatorOptions, SamplerOptions
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime import SamplerV2 as Sampler
-from qiskit_ibm_runtime.fake_provider import FakeBrisbane
+from qiskit_ibm_runtime.fake_provider import FakeBrisbane, FakeBelemV2
 from qiskit_optimization.algorithms import (MinimumEigenOptimizer,
                                             RecursiveMinimumEigenOptimizer)
 from qiskit_optimization.converters import QuadraticProgramToQubo
@@ -198,7 +198,7 @@ class QAOArunner():
                 #print("Running on: Density matrix simulator with noise")
 
             case 'noisy_sampling':
-                self.backend = AerSimulator.from_backend(FakeBrisbane())
+                self.backend = AerSimulator.from_backend(FakeBelemV2())
                 
                 #print("Running on: AerSimulator with noise")
 
@@ -319,8 +319,8 @@ class QAOArunner():
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
 
-                if self.backend_mode =='quantum_backend':
-                    self.set_error_mitigation(estimator)
+                #if self.backend_mode =='quantum_backend':
+                estimator = self.set_error_mitigation(estimator)
                 isa_hamiltonian = self.cost_hamiltonian.apply_layout(self.circuit.layout) 
                 result = minimize(
                 self.cost_func_estimator, 
@@ -372,8 +372,8 @@ class QAOArunner():
             case 'noisy_sampling'| 'quantum_backend' :
                 estimator = Estimator(mode=self.backend)
                 estimator.options.default_shots = self.amount_shots
-                if self.backend_mode == 'quantum_backend':
-                    self.set_error_mitigation(estimator)
+                #if self.backend_mode == 'quantum_backend':
+                self.set_error_mitigation(estimator)
                 start_time = time.time() #refresh time since estimator init can take time
                 results = [self.cost_func_estimator(init_param, self.circuit, self.cost_hamiltonian, estimator=estimator) for init_param in init_params]
 
@@ -518,10 +518,21 @@ class QAOArunner():
             case 'noisy_sampling' | 'quantum_backend':
                 bound_circuit = self.circuit.assign_parameters(params, inplace=False)
                 pub = (bound_circuit)
-                sampler = Sampler(mode=self.backend)
+                options_ex5 = SamplerOptions()
+                options_ex5.default_shots = self.amount_shots
+
+
+                ### enables gate twirling
+                options_ex5.twirling.enable_gates = True
+
+                options_ex5.dynamical_decoupling.enable = True
+
+                sampler = Sampler(self.backend, options=options_ex5)
+
+                
                 sampler.options.default_shots = self.amount_shots
-                if self.backend_mode == 'quantum_backend':
-                    self.set_error_mitigation(sampler)
+                #if self.backend_mode == 'quantum_backend':
+                #sampler = self.set_error_mitigation(sampler)
                 job = sampler.run([pub])
                 counts_int = job.result()[0].data.meas.get_int_counts()
                 shots = sum(counts_int.values())
@@ -529,11 +540,23 @@ class QAOArunner():
                 return final_distribution_int
     
 
-    def set_error_mitigation(self,backend):
-        backend.options.dynamical_decoupling.enable = True
-        backend.options.dynamical_decoupling.sequence_type = "XY4"
-        backend.options.twirling.enable_gates = True
-        backend.options.twirling.num_randomizations = "auto"
+    def set_error_mitigation(self, estimator):
+        options_ex5 = EstimatorOptions()
+        options_ex5.default_shots = self.amount_shots
+
+
+        ### enables gate twirling
+        options_ex5.twirling.enable_gates = True
+
+        options_ex5.dynamical_decoupling.enable = True
+        
+        estimator = Estimator(self.backend, options=options_ex5)
+        return estimator
+
+        #backend.options.dynamical_decoupling.enable = True
+        #backend.options.dynamical_decoupling.sequence_type = "XY4"
+        #backend.options.twirling.enable_gates = True
+        #backend.options.twirling.num_randomizations = "auto"
 
     def get_job_custom_circuit(self, circuit):
         pub = (circuit,self.final_params,)

@@ -6,12 +6,19 @@ from qiskit_ibm_runtime.fake_provider import FakeBrisbane
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':
-            backend = AerSimulator(method="statevector")
+            backend = AerSimulator(method="statevector",max_parallel_threads=4,
+    max_parallel_experiments=1,
+    max_parallel_shots=4)
+    
+            print(backend.configuration())
             if verbose:
                 print("You are running on the local ", backend.name)
 
         case 'noisy_sampling':
-            backend = AerSimulator.from_backend(FakeBrisbane())
+            backend = AerSimulator.from_backend(FakeBrisbane(),max_parallel_threads=16,
+    max_parallel_experiments=1,
+    max_parallel_shots=16)
+            print(backend.configuration().to_dict())
             if verbose:
                 print("Running on: AerSimulator with noise")
 

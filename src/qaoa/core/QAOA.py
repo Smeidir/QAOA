@@ -18,7 +18,7 @@ from qaoa.models.solver import Solver
 from qaoa.utils.helper_functions import to_bitstring,to_bitstring_str
 from qaoa.core.ansatz_constructor import build_ansatz 
 from qaoa.core.optimizer_strategies import (
-    NoOptimizerStrategy, StatevectorOptimizer, DensityMatrixOptimizer, EstimatorOptimizer
+    NoOptimizerStrategy, StatevectorOptimizer,  EstimatorOptimizer
 )
 
 

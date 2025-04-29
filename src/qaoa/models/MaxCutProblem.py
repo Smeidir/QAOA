@@ -362,18 +362,3 @@ def save_graphs(): #Code for getting the graphs from public directory: https://u
                     save_file.write('\n'.join(graphs_to_save))
 
 
-if __name__ == "__main__":
-    problem = MaxCutProblem()
-    sizes = [5, 7, 10]
-    erdos_renyi_graphs = problem.get_erdos_renyi_graphs(sizes)
-
-    fig, axes = plt.subplots(len(sizes), 2, figsize=(12, 6 * len(sizes)))
-    axes = axes.flatten()
-
-    for i, graph in enumerate(erdos_renyi_graphs):
-        ax = axes[i]
-        draw_graph(graph, ax=ax)
-        ax.set_title(f"Erdős-Rényi Graph {i+1}")
-
-    plt.tight_layout()
-    plt.show()

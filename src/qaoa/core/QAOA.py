@@ -247,8 +247,6 @@ class QAOArunner():
             )
             for index in indexes_to_flip:
                 modified_solution[index] = 1 - modified_solution[index]  # Flip 0->1 or 1->0
-        print('Classical solution: ', self.classical_solution)
-        print('Modified solution: ', modified_solution, 'for a hamming distance of: ', self.hamming_dist)
         return [-np.pi/2 + (1 - 2 * x) * np.arctan(bias) for x in modified_solution]
 
     def prob_best_solution(self,params):

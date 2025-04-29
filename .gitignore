@@ -5,3 +5,4 @@ test_settings.txt
 __pycache__/
 "myenv/Lib/site-packages/torch/lib/"
 myenv/
+.ipynb_checkpoints

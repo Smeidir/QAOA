@@ -16,7 +16,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = True
+local = False
 
 if not local:
     with open("qaoa_settings.txt", "r") as f:
@@ -24,8 +24,9 @@ if not local:
 if local: 
     settings = "[{'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': True}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': True}]"
     settings = ast.literal_eval(settings)
+    print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
-@ray.remote(num_cpus =1)
+@ray.remote(num_cpus =4)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
@@ -40,7 +41,7 @@ if ray.is_initialized():
 ray.init(log_to_driver=True)
 
 
-graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
+graphs= [problem.get_erdos_renyi_graphs_paper1()]
 graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
@@ -65,7 +66,7 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 50
+n_times = 5
 all_combos *= n_times
 
 

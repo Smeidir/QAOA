@@ -189,7 +189,6 @@ class QAOArunner():
         self.time_elapsed = time.time() -self.start_time
         self.result = result
         self.fev = result.nfev
-
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_solution()
 
@@ -223,7 +222,6 @@ class QAOArunner():
         self.time_elapsed = time.time() -start_time
         self.result = best_result
         self.fev = n
-
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_solution()
 
@@ -373,5 +371,4 @@ class QAOArunner():
             else:
                 ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()
-
 

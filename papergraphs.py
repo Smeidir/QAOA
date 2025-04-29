@@ -66,7 +66,7 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 5
+n_times = 50
 all_combos *= n_times
 
 

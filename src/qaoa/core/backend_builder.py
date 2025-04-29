@@ -3,6 +3,8 @@ from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.fake_provider import FakeBrisbane
 
+from qaoa.models import params
+
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':
@@ -10,17 +12,15 @@ def get_backend(mode, amount_shots=5000, verbose=False):
     max_parallel_experiments=1,
     max_parallel_shots=4)
     
-            print(backend.configuration())
             if verbose:
-                print("You are running on the local ", backend.name)
+                print("You are running on the local ",print(backend.configuration()))
 
         case 'noisy_sampling':
             backend = AerSimulator.from_backend(FakeBrisbane(),max_parallel_threads=16,
     max_parallel_experiments=1,
     max_parallel_shots=16)
-            print(backend.configuration().to_dict())
             if verbose:
-                print("Running on: AerSimulator with noise")
+                print("Running on: AerSimulator with noise.", print(backend.configuration().to_dict()))
 
         case 'quantum_backend':
             QiskitRuntimeService.save_account(channel="ibm_quantum", token=params.api_key, overwrite=True, set_as_default=True)

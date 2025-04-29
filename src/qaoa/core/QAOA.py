@@ -373,27 +373,5 @@ class QAOArunner():
             else:
                 ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()
-from qaoa.models.MaxCutProblem import MaxCutProblem
-if __name__ == "__main__":
-    problem = MaxCutProblem()
-    sizes = [5, 7, 10]
-    erdos_renyi_graphs = problem.get_erdos_renyi_graphs(sizes)[5]
-    
-    # Run for hamming distances from 0 to 9
-    """for hamming_dist in range(12):
-        print(f"\nRunning with hamming distance = {hamming_dist}")
-        qaoa = QAOArunner(graph=erdos_renyi_graphs, hamming_dist=hamming_dist, warm_start=True, vertexcover=True)
-        qaoa.build_circuit()
-        qaoa.run()
-        print(qaoa.to_dict())"""
-
-    for qubit_sizes in range(15):
-        array = np.ones(shape=(2**qubit_sizes, 2**qubit_sizes), dtype='complex128')
-        bytes_size = array.nbytes
-        kb_size = bytes_size / 1024
-        mb_size = kb_size / 1024
-        gb_size = mb_size / 1024
-        print(f'A problem with {qubit_sizes} qubits requires memory of {gb_size:.4f} GB ({mb_size:.2f} MB, {kb_size:.2f} KB, {bytes_size} bytes)')
-
 
 

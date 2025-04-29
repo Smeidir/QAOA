@@ -25,7 +25,7 @@ if local:
     settings = "[{'param_initialization': 'gaussian', 'optimizer': 'COBYLA', 'qaoa_variant': 'vanilla', 'warm_start': False, 'depth': 2, 'lagrangian_multiplier': 2, 'amount_shots': 5000, 'max_tol': 1e-08, 'vertexcover': False}]" 
     settings = ast.literal_eval(settings)
 
-@ray.remote(num_cpus = 4)
+@ray.remote(num_cpus =1)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()

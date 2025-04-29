@@ -238,6 +238,8 @@ class QAOArunner():
     def _get_warm_start_thetas(self):
         bias = 0.4
         modified_solution = self.classical_solution.copy()
+        if len(modified_solution) < self.hamming_dist:
+            raise ValueError('Hamming distance of ', self.hamming_dist,' cannot be more than length of classical solution ', len(modified_solution))
         if self.hamming_dist > 0:
             # Choose random indexes to flip
             indexes_to_flip = np.random.choice(
@@ -247,7 +249,8 @@ class QAOArunner():
             )
             for index in indexes_to_flip:
                 modified_solution[index] = 1 - modified_solution[index]  # Flip 0->1 or 1->0
-
+        print('Classical solution: ', self.classical_solution)
+        print('Modified solution: ', modified_solution, 'for a hamming distance of: ', self.hamming_dist)
         return [-np.pi/2 + (1 - 2 * x) * np.arctan(bias) for x in modified_solution]
 
     def prob_best_solution(self,params):
@@ -370,4 +373,27 @@ class QAOArunner():
             else:
                 ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
         plt.show()
+from qaoa.models.MaxCutProblem import MaxCutProblem
+if __name__ == "__main__":
+    problem = MaxCutProblem()
+    sizes = [5, 7, 10]
+    erdos_renyi_graphs = problem.get_erdos_renyi_graphs(sizes)[5]
+    
+    # Run for hamming distances from 0 to 9
+    """for hamming_dist in range(12):
+        print(f"\nRunning with hamming distance = {hamming_dist}")
+        qaoa = QAOArunner(graph=erdos_renyi_graphs, hamming_dist=hamming_dist, warm_start=True, vertexcover=True)
+        qaoa.build_circuit()
+        qaoa.run()
+        print(qaoa.to_dict())"""
+
+    for qubit_sizes in range(15):
+        array = np.ones(shape=(2**qubit_sizes, 2**qubit_sizes), dtype='complex128')
+        bytes_size = array.nbytes
+        kb_size = bytes_size / 1024
+        mb_size = kb_size / 1024
+        gb_size = mb_size / 1024
+        print(f'A problem with {qubit_sizes} qubits requires memory of {gb_size:.4f} GB ({mb_size:.2f} MB, {kb_size:.2f} KB, {bytes_size} bytes)')
+
+
 

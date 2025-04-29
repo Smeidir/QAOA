@@ -105,6 +105,7 @@ class MaxCutProblem():
     def get_erdos_renyi_graphs(self,sizes):
         #TODO: only replicatable if the same sizes are given in the same order.
         seed = 40
+        #for 5,7,9 the seed waas 40 and probabilities 0.35 and 0.7
 
         rng = np.random.default_rng(seed)
         graphs = []
@@ -125,8 +126,37 @@ class MaxCutProblem():
             graph_dense.add_edges_from(edge_list_dense)
             graphs.append(graph_dense)
         return graphs
+    
 
+    def get_erdos_renyi_graphs_paper1(self):
+        """This is a pretty specific function for giving 4 graphs, 3 dense and one sparse, of sizes 6, 9 and 12, where the sparse
+        one is size 9. That's why it's pretty hardcoded. 
+        """
+        #TODO: only replicatable if the same sizes are given in the same order.
+        seed = 40
+        #This is suppos
 
+        rng = np.random.default_rng(seed)
+        graphs = []
+
+        for size in [6,9,12]:
+            
+
+            graph_dense = rx.undirected_gnp_random_graph(size, 0.6, seed=seed)
+
+            edge_list_dense = graph_dense.edge_list()
+            edge_list_dense = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_dense]
+            graph_dense.clear_edges()
+            graph_dense.add_edges_from(edge_list_dense)
+            graphs.append(graph_dense)
+        for size in [9]:
+            graph_sparse = rx.undirected_gnp_random_graph(size, 0.3, seed=seed)
+            edge_list_sparse = graph_sparse.edge_list()
+            edge_list_sparse = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_sparse]
+            graph_sparse.clear_edges()
+            graph_sparse.add_edges_from(edge_list_sparse)
+            graphs.append(graph_sparse)
+        return graphs
     def draw_given_graphs(self, graph_names):
 
         graphs, names = self.get_test_graphs()
@@ -256,6 +286,8 @@ class MaxCutProblem():
         graph3.add_edges_from([(u-1, v-1, 1.0) for u, v in edge_list_3])
 
         return [graph1, graph2, graph3]
+    
+    
 
 def save_graphs(): #Code for getting the graphs from public directory: https://users.cecs.anu.edu.au/~bdm/data/graphs.html
     graph_dir = 'graphs'

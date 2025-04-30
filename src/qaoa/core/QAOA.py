@@ -14,7 +14,7 @@ from scipy.optimize import minimize
 from qaoa.models import params
 from qaoa.core.parameter_init import get_init_params
 from qaoa.core.backend_builder import get_backend
-from qaoa.models.solver import Solver
+from qaoa.models.solver import create_solver
 from qaoa.utils.helper_functions import to_bitstring,to_bitstring_str
 from qaoa.core.ansatz_constructor import build_ansatz 
 from qaoa.core.optimizer_strategies import (
@@ -33,7 +33,7 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, vertexcover = False,max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, hamming_dist = 0):
+                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, hamming_dist = 0):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -54,11 +54,11 @@ class QAOArunner():
         self.objective_func_vals = []
         self.classical_objective_func_vals = []
         self.depth = depth
-        self.vertexcover = vertexcover
+        self.problem_type = problem_type
         self.max_tol = max_tol
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
-        self.solver = Solver(self.graph, lagrangian = self.lagrangian_multiplier, vertexcover = self.vertexcover) 
+        self.solver = create_solver(self.graph, problem_type=self.problem_type, lagrangian = self.lagrangian_multiplier) 
         self.classical_solution,self.classical_objective_value = self.solver.solve()
         self.fev = 0 #0 quantum function evals, yet. Must initialize to increment.
         self.num_qubits = len(self.graph.nodes())
@@ -78,7 +78,7 @@ class QAOArunner():
             'optimizer': self.optimizer,
             'warm_start': self.warm_start,
             'depth': self.depth,
-            'vertexcover': self.vertexcover,
+            'problem_type': self.problem_type,
             'amount_shots': self.amount_shots,
             'max_tol': self.max_tol,
             'lagrangian_multiplier': self.lagrangian_multiplier,

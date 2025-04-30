@@ -118,6 +118,7 @@ class QAOArunner():
 
         pm = generate_preset_pass_manager(optimization_level=3,backend=self.backend)
         self.circuit = pm.run(self.circuit)
+        self.check_operator_commutation(self.cost_hamiltonian)
         
         
     def check_operator_commutation(self, cost_hamiltonian):
@@ -142,8 +143,8 @@ class QAOArunner():
         
         return False
         
-        # Call the function in build_circuit
-        self.check_operator_commutation(self.cost_hamiltonian)
+
+        
     def build_backend(self):
         self.backend = get_backend(self.backend_mode, self.amount_shots)
 
@@ -160,6 +161,7 @@ class QAOArunner():
         return fig
 
     def get_initial_params(self): 
+
         if self.qaoa_variant == "multiangle":
             param_cost_length = len(self.cost_hamiltonian)
             param_mixer_length = self.num_qubits
@@ -178,6 +180,7 @@ class QAOArunner():
                     shots=self.amount_shots, mitigation_fn=mitigation_fn)
             case _:
                 raise ValueError(f"Unsupported backend mode: {self.backend_mode}")
+            
     def run(self):
         
         init_params = self.get_initial_params()
@@ -194,7 +197,6 @@ class QAOArunner():
 
 
     def run_no_optimizer(self, n = 50):
-        self.objective_func_vals = []
         param_cost_length = 1
         param_mixer_length = 1
 
@@ -209,7 +211,6 @@ class QAOArunner():
                     for _ in range(self.depth)
                 ]).flatten() for i in range(n)]
                 
-        self.runtimes = []
         start_time = time.time()
         strategy = NoOptimizerStrategy(mode=self.backend_mode, backend= self.backend, shots = self.amount_shots) 
         results = [strategy.evaluate(params=param, circuit=self.circuit, hamiltonian=self.cost_hamiltonian) for param in init_params]
@@ -249,21 +250,7 @@ class QAOArunner():
                 modified_solution[index] = 1 - modified_solution[index]  # Flip 0->1 or 1->0
         return [-np.pi/2 + (1 - 2 * x) * np.arctan(bias) for x in modified_solution]
 
-    def prob_best_solution(self,params):
-        #TODO: see if this can be optimized
-        
-        final_distribution_int = self.get_bitstring_probabilities()
 
-        keys = list(final_distribution_int.keys())
-        values = np.array(list(final_distribution_int.values()))
-        
-        _,classical_value = self.solver.solve() 
-        percent_chance_optimal = 0
-        bitstrings = [list(reversed(to_bitstring(key, self.num_qubits))) for key in keys]
-        evaluations = np.array([self.solver.evaluate_bitstring(bitstring) for bitstring in bitstrings], dtype = 'f')
-        ideal_values = np.where(evaluations == classical_value, 1, 0)
-        percent_chance_optimal = np.sum(values[evaluations == classical_value])
-        return percent_chance_optimal
 
 
     def draw_objective_value(self):
@@ -282,9 +269,8 @@ class QAOArunner():
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
         rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
 
-    def calculate_solution(self): #TODO: må da finnes en lettere måte?
-        #TODO: support fior å finne flere av de mest sannsynlige?
-        
+    def calculate_solution(self): 
+
         final_distribution_int = self.get_bitstring_probabilities()
         #print('final distribution int', final_distribution_int)
         #print(final_distribution_int)
@@ -328,16 +314,15 @@ class QAOArunner():
         values = list(final_distribution_int.values())
 
         percent_chance_optimal = 0
-        _,valuess = self.solver.solve()
         
         for i in range(len(keys)):
             bitstring = list(reversed(to_bitstring(keys[i], self.num_qubits)))
             value = self.solver.evaluate_bitstring(bitstring)
-            if value == valuess:
-                #print('Bitstring', bitstring, 'has value', value, 'and probability ', values[i])
+            if value == self.classical_objective_value:
                 percent_chance_optimal += values[i]
                 
         return percent_chance_optimal
+
     
     def print_bitstrings(self):
         matplotlib.rcParams.update({"font.size": 10})

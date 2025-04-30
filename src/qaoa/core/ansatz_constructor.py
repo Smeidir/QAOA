@@ -2,10 +2,7 @@ from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
 from qiskit.circuit.library import QAOAAnsatz
 from qiskit.quantum_info import SparsePauliOp
-import numpy as np
-from qiskit.primitives import BackendSampler
-from qiskit_optimization.algorithms import (MinimumEigenOptimizer,
-                                            RecursiveMinimumEigenOptimizer)
+
 
 def build_ansatz(mode, cost_hamiltonian, qubits, depth , warm_start_seed = None):
     match mode:

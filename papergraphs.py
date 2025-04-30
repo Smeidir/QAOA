@@ -16,7 +16,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = False
+local = True
 
 if not local:
     with open("qaoa_settings.txt", "r") as f:
@@ -82,24 +82,15 @@ parameter_set = []
 keys_with_differences = []
 
 keys = settings[0].keys()
+parameter_dict = {}
 for key in keys:
-    values = {d[key] for d in settings}
-    flag= False
-    if len(values) > 1:  # If there are multiple unique values for this key
-        keys_with_differences.append(key)
-        flag=True
-    if flag:
-        keys_with_differences.append(values)
-
-parameter_set = keys_with_differences
+    values = set([d[key] for d in settings])
+    parameter_dict[key] = values
 
 
+parameter_string = str(parameter_dict)
 
-parameter_string = [str(x) + "_" for x in parameter_set]
-parameter_string = "".join(parameter_string)
-parameter_string = parameter_string[0:-1]
-
-print('Parameter set', parameter_set)
+print('Parameter set', keys)
 print('Parameter string, used for naming .csv files: ', parameter_string)
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph,name in all_combos]

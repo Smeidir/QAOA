@@ -72,7 +72,7 @@ class Solver():
             is_infeasible = 0
             for (i, j) in self.graph.edge_list():
                 is_infeasible += self.A*(1 - bitstring[i]) * (1 - bitstring[j])
-            if is_infeasible:  #FIXX THIS TODO SOM FAEN
+            if is_infeasible:  #TODO dobbeltsjekk når denne blir kalt
                 if mark_infeasible:
                     return (self.B*np.sum(bitstring) + is_infeasible, True) #now returns value + violation
                 else:

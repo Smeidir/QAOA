@@ -1,7 +1,7 @@
 from qiskit_aer import AerSimulator, StatevectorSimulator, Aer
 from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.fake_provider import FakeBrisbane
+from qiskit_ibm_runtime.fake_provider import FakeBrisbane,FakeMelbourneV2
 
 from qaoa.models import params
 
@@ -16,7 +16,12 @@ def get_backend(mode, amount_shots=5000, verbose=False):
                 print("You are running on the local ",print(backend.configuration()))
 
         case 'noisy_sampling':
-            backend = AerSimulator.from_backend(FakeBrisbane(),max_parallel_threads=16,
+            service = QiskitRuntimeService()
+            print(service.backends())
+            print(FakeMelbourneV2())
+            backend = service.backend("ibm_brisbane")
+            noise_model = NoiseModel.from_backend(backend)
+            backend = AerSimulator.from_backend(noise_model = noise_model,max_parallel_threads=16,
     max_parallel_experiments=1,
     max_parallel_shots=16)
             if verbose:
@@ -30,4 +35,6 @@ def get_backend(mode, amount_shots=5000, verbose=False):
                 print("Running on IBM quantum backend:", backend)
     
     return backend  # Added missing return statement
+
+get_backend('noisy_sampling', verbose=True)
         

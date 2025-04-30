@@ -96,13 +96,27 @@ class Solver():
         if self.vertexcover:
             if self.verbose:
                 print(f'Objective to minimize: {self.objective}')
-            self.model.minimize(self.objective)
+                
+            m = Model(name="vc_exact")
+            x = m.binary_var_list(len(self.graph), name="x")
+            # cover constraints
+            for i,j in self.graph.edge_list():
+                m.add_constraint(x[i] + x[j] >= 1)
+            # pure size objective
+            m.minimize(m.sum(x[i] for i in range(len(self.graph))))
+            # Solve the model
+            solution = m.solve()
+            self.variables = x
+            # Extract the solution
+            bitstring = [x[i].solution_value for i in range(len(self.graph))]
             
-            solution = self.model.solve()
-            #print('optimal value found:',solution.get_objective_value() )
-            bitstring = [var.solution_value for var in self.variables]
             if self.verbose:
                 print(solution.get_objective_value(), bitstring)
+                
+            return bitstring, solution.get_objective_value()
+            
+            
+            
             return bitstring, solution.get_objective_value()
                         
         if self.verbose:
@@ -154,7 +168,7 @@ class Solver():
                 return assignments, self.evaluate_bitstring(assignments)
 
 
-    def plot_result(self, bitstring):
+    def plot_result(self, bitstring=None):
         """
         Plots graph of partition. If no bitstring is supplied, must be run after solve.
         """

@@ -22,7 +22,7 @@ if not local:
     with open("qaoa_settings.txt", "r") as f:
         settings = ast.literal_eval(f.read().strip())
 if local: 
-    settings = "[{'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': True}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': True}]"
+    settings = "[{'backend_mode': 'statevector', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': False}, {'backend_mode': 'statevector', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': True}]"
     settings = ast.literal_eval(settings)
     print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 

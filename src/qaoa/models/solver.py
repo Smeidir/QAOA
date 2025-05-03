@@ -241,7 +241,6 @@ class MinVertexCoverSolver(Solver):
             m.add_constraint(x[i] + x[j] >= 1)
         # pure size objective
         m.minimize(m.sum(x[i]*self.graph[i] for i in range(len(self.graph))))
-        print(m.objective_expr)
         # Solve the model
         solution = m.solve()
         self.variables = x
@@ -296,7 +295,7 @@ class MinVertexCoverSolver(Solver):
         Method keyword is for future use with different relaxed solving methods. Default is Goemanns-Williamson."""
 
         raise ValueError('Ideal solutions for MVC are half-integral, and therefore not usable for QAOA warm_start.')
-
+"""
 def main():
     
     #Example usage of the MinVertexCoverSolver to find and visualize all feasible solutions.
@@ -380,4 +379,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()"""

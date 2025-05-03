@@ -92,9 +92,13 @@ class MaxCutSolver(Solver):
         
         objective = 0
 
+        try:
 
-        for (i,j, w) in self.graph.weighted_edge_list():            
-            objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
+            for (i,j, w) in self.graph.weighted_edge_list():            
+                objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
+        except AttributeError:
+            for (i,j) in self.graph.edge_list():            
+                objective+= (self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
 
         self.objective = objective
         self.model.objective=objective

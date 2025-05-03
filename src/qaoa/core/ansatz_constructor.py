@@ -45,6 +45,9 @@ def _build_multiangle_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, d
     if warm_start_seed:
         for i, theta in enumerate(warm_start_seed):
             qc.ry(theta, i)
+    else:
+        for i in range(num_qubits):
+            qc.h(i)
 
     for d in range(depth):
         gamma_params = [Parameter(f"γ_{d}_{i}") for i in range(len(cost_terms))]

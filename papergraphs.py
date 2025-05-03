@@ -22,7 +22,7 @@ if not local:
     with open("qaoa_settings.txt", "r") as f:
         settings = ast.literal_eval(f.read().strip())
 if local: 
-    settings = "[{'backend_mode': 'statevector', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': False}, {'backend_mode': 'statevector', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': True}]"
+    settings = "[{'backend_mode': 'statevector', 'problem_type': 'minvertexcover','qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': False}, {'backend_mode': 'statevector','problem_type': 'minvertexcover', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': True}]"
     settings = ast.literal_eval(settings)
     print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
@@ -91,7 +91,10 @@ for key in keys:
 parameter_string = str(parameter_dict)
 
 print('Parameter set', keys)
-print('Parameter string, used for naming .csv files: ', parameter_string)
+# Clean parameter string for Windows filenames (removing ':' and "'" characters)
+clean_parameter_string = parameter_string.replace(":", "").replace(" ","")
+print('Parameter string, used for naming .csv files: ', clean_parameter_string)
+parameter_string = clean_parameter_string
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph,name in all_combos]
 

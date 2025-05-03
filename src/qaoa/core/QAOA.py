@@ -56,6 +56,7 @@ class QAOArunner():
         self.depth = depth
         self.problem_type = problem_type
         self.max_tol = max_tol
+        self.problem_type = problem_type
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
         self.solver = create_solver(self.graph, problem_type=self.problem_type, lagrangian = self.lagrangian_multiplier) 
@@ -65,6 +66,8 @@ class QAOArunner():
         self.objective_func_vals = []
         self.runtimes = []
         self.hamming_dist = hamming_dist
+        self.hamming_string = None
+        self.hamming_obj_func = None
 
     def to_dict(self):
         """
@@ -91,7 +94,10 @@ class QAOArunner():
             'classic_value': self.classical_objective_value, 
             'final_params': self.final_params, 
             'percent_measure_optimal': self.get_prob_measure_optimal(),
-            'hamming_dist': self.hamming_dist
+            'hamming_dist': self.hamming_dist,
+            'hamming_string': self.hamming_string,
+            'hamming_obj_func': self.hamming_obj_func
+
         }
 
     def build_circuit(self):
@@ -237,17 +243,14 @@ class QAOArunner():
     def _get_warm_start_thetas(self):
         bias = 0.4
         modified_solution = self.classical_solution.copy()
+        rng = np.random.default_rng()
         if len(modified_solution) < self.hamming_dist:
             raise ValueError('Hamming distance of ', self.hamming_dist,' cannot be more than length of classical solution ', len(modified_solution))
-        if self.hamming_dist > 0:
-            # Choose random indexes to flip
-            indexes_to_flip = np.random.choice(
-                range(len(self.classical_solution)), 
-                size=self.hamming_dist, 
-                replace=False
-            )
-            for index in indexes_to_flip:
-                modified_solution[index] = 1 - modified_solution[index]  # Flip 0->1 or 1->0
+        hammings = self.solver.get_feasible_solutions_hamming()
+        modified_solution = rng.choice(hammings[self.hamming_dist])
+
+        self.hamming_string = modified_solution
+        self.hamming_obj_func = self.solver.evaluate_bitstring(modified_solution)
         return [-np.pi/2 + (1 - 2 * x) * np.arctan(bias) for x in modified_solution]
 
 
@@ -267,7 +270,7 @@ class QAOArunner():
     def plot_result(self):
         colors = ["tab:grey" if i == 0 else "tab:purple" for i in self.solution]
         pos, default_axes = rx.spring_layout(self.graph), plt.axes(frameon=True)
-        rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos)
+        rx.visualization.mpl_draw(self.graph, node_color=colors, node_size=100, alpha=0.8, pos=pos, with_labels=True)
 
     def calculate_solution(self): 
 
@@ -349,9 +352,9 @@ class QAOArunner():
         for i, bitstr in enumerate(final_bits.keys()):
             bitstring = list(reversed([int(bit) for bit in bitstr]))
             value = self.solver.evaluate_bitstring(bitstring, mark_infeasible=True)
-            if isinstance(value, tuple):
+            if value[1]:
                 ax.text(i, final_bits[bitstr], f'{value[0]:.2f}', ha='center', va='bottom', color='red')
             else:
-                ax.text(i, final_bits[bitstr], f'{value:.2f}', ha='center', va='bottom')
+                ax.text(i, final_bits[bitstr], f'{value[0]:.2f}', ha='center', va='bottom')
         plt.show()
 

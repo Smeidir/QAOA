@@ -9,6 +9,8 @@ import networkx as nx
 import cvxpy as cp
 
 from abc import ABC, abstractmethod
+from qaoa.models.MaxCutProblem import MaxCutProblem
+from matplotlib.widgets import Button
 
 def create_solver(graph, problem_type, **kwargs):
     match problem_type.lower():
@@ -169,6 +171,10 @@ class MaxCutSolver(Solver):
 
 
 class MinVertexCoverSolver(Solver):
+
+    """WARNING: MUST BE AWEIGHTED GRAPH!
+    If not, we will have bugs with the weights - an unweighted graph will be weighted by index.
+    THis is obviously a todo but i dont have all the time in the world."""
         
     def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -185,8 +191,8 @@ class MinVertexCoverSolver(Solver):
         #for edge in graph.edges:
         self.B = 1
 
-        for var in self.variables:
-            objective += self.B*var
+        for i,var in enumerate(self.variables):
+            objective += self.B*var*self.graph[i]
 
         for (i,j) in self.graph.edge_list(): #This is quadratic on purpose to make it align with a QUBO. Can be done linearly 
             objective += self.lagrangian*(1- self.variables[i])*( 1-self.variables[j])
@@ -202,14 +208,18 @@ class MinVertexCoverSolver(Solver):
         Mark infeasible is for better plotting of solutions.
         """
         is_infeasible = 0
+        obj_value = self.B*sum([bitstring[i]*self.graph[i] for i in range(len(bitstring))])
+
         for (i, j) in self.graph.edge_list():
             is_infeasible += self.lagrangian*(1 - bitstring[i]) * (1 - bitstring[j])
         if is_infeasible:  #TODO dobbeltsjekk når denne blir kalt
             if mark_infeasible:
-                return (self.B*np.sum(bitstring) + is_infeasible, True) #now returns value + violation
+                return (obj_value + is_infeasible, True) #now returns value + violation
             else:
-                return self.B*np.sum(bitstring) + is_infeasible
-        return self.B* np.sum(bitstring)
+                return obj_value + is_infeasible
+        if mark_infeasible:
+            return (obj_value, False)
+        return obj_value
 
     def solve(self):
         """
@@ -226,7 +236,8 @@ class MinVertexCoverSolver(Solver):
         for i,j in self.graph.edge_list():
             m.add_constraint(x[i] + x[j] >= 1)
         # pure size objective
-        m.minimize(m.sum(x[i] for i in range(len(self.graph))))
+        m.minimize(m.sum(x[i]*self.graph[i] for i in range(len(self.graph))))
+        print(m.objective_expr)
         # Solve the model
         solution = m.solve()
         self.variables = x
@@ -238,6 +249,43 @@ class MinVertexCoverSolver(Solver):
             
         return bitstring, solution.get_objective_value()
 
+    def get_feasible_solutions_hamming(self):
+        """
+        Returns all feasible solutions to the Minimum Vertex Cover problem.
+        A solution is feasible if every edge has at least one of its endpoints in the cover.
+        Not optimized at all.
+
+        Returns:
+            dict: A list of all feasible bitstrings (vertex covers), sorted by hamming distance from the best one.
+        """
+        n = len(self.graph)
+        feasible_solutions = {}
+        # Generate all possible bitstrings
+        for i in range(2**n):
+            # Convert integer to binary representation (bitstring)
+            bitstring = [(i >> j) & 1 for j in range(n)]
+            
+            # Check if this is a valid vertex cover
+            is_valid = True
+            for u, v in self.graph.edge_list():
+                if bitstring[u] == 0 and bitstring[v] == 0:
+                    is_valid = False
+                    break
+            if is_valid:
+                try:
+                    feasible_solutions[self.evaluate_bitstring(bitstring)].append(bitstring)
+                    
+                except KeyError:
+                    feasible_solutions[self.evaluate_bitstring(bitstring)] = [bitstring]
+        best_solution = feasible_solutions[min(feasible_solutions.keys())]
+        hamming_dict = {x: [] for x in range(n)}
+        for current_solution in feasible_solutions.values():
+            hamming_dict[np.count_nonzero(np.array(best_solution)!=np.array(current_solution))].append(current_solution[0])
+
+
+
+                    
+        return hamming_dict
 
     def solve_relaxed(self, method = 'GW'):
         """ Solves the relaxed version of a problem, where the X values are continous between 0 and 1. 
@@ -245,3 +293,87 @@ class MinVertexCoverSolver(Solver):
 
         raise ValueError('Ideal solutions for MVC are half-integral, and therefore not usable for QAOA warm_start.')
 
+def main():
+    
+    #Example usage of the MinVertexCoverSolver to find and visualize all feasible solutions.
+    
+    import matplotlib.pyplot as plt
+    
+    # Create a simple graph
+    # Get a graph from paper1
+    problem = MaxCutProblem()
+    # Get one of the graphs from the paper collection
+    paper_graphs = problem.get_erdos_renyi_graphs_paper1()
+    G = paper_graphs[0]  # Using the first graph from the collection
+    
+    # Create the solver
+    solver = MinVertexCoverSolver(G, "MinVertexCover")
+    test_solve = solver.solve()
+    
+    # Get all feasible solutions
+    feasible_solutions = solver.get_feasible_solutions()
+    # Print all solutions by size
+    total_solutions = sum(len(solutions) for solutions in feasible_solutions.values())
+    print(f"Found {total_solutions} feasible vertex covers of graph of size {len(G.nodes())}, sparse:")
+    
+    all_solutions = []
+    for size, solutions in sorted(feasible_solutions.items()):
+        print(f"Size {size}: {len(solutions)} solutions")
+        for solution in solutions:
+            all_solutions.append(solution)
+    
+    if not all_solutions:
+        print("No feasible solutions found.")
+        return
+    
+
+
+    # Visualize the graph and solutions
+    import matplotlib.pyplot as plt
+
+    # Show solutions in a scrollable manner
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plt.subplots_adjust(bottom=0.2)
+    
+    pos = rx.spring_layout(G)
+    current_idx = [0]  # Using list to make it mutable in nested functions
+    
+    def draw_solution(idx):
+        ax.clear()
+        solution = all_solutions[idx]
+        colors = ["tab:red" if node == 1 else "tab:grey" for node in solution]
+        
+        rx.visualization.mpl_draw(G, node_color=colors, node_size=400, 
+                                pos=pos, ax=ax, with_labels=True)
+        ax.set_title(f"Solution {idx+1}/{len(all_solutions)}: Size = {sum(solution)}")
+    
+    def next_solution(event):
+        current_idx[0] = (current_idx[0] + 1) % len(all_solutions)
+        draw_solution(current_idx[0])
+        plt.draw()
+    
+    def prev_solution(event):
+        current_idx[0] = (current_idx[0] - 1) % len(all_solutions)
+        draw_solution(current_idx[0])
+        plt.draw()
+    
+    # Create buttons for navigation
+    ax_prev = plt.axes([0.1, 0.05, 0.15, 0.075])
+    ax_next = plt.axes([0.55, 0.05, 0.15, 0.075])
+    
+    b_next = Button(ax_next, 'Next')
+    b_next.on_clicked(next_solution)
+    b_prev = Button(ax_prev, 'Previous')
+    b_prev.on_clicked(prev_solution)
+    
+    # Draw initial solution
+    draw_solution(current_idx[0])
+
+    
+    
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

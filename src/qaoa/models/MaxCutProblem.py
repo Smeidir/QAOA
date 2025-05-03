@@ -144,18 +144,23 @@ class MaxCutProblem():
 
             graph_dense = rx.undirected_gnp_random_graph(size, 0.6, seed=seed)
 
-            edge_list_dense = graph_dense.edge_list()
-            edge_list_dense = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_dense]
-            graph_dense.clear_edges()
-            graph_dense.add_edges_from(edge_list_dense)
+            #edge_list_dense = graph_dense.edge_list()
+            #edge_list_dense = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_dense]
+            #graph_dense.clear_edges()
+            #graph_dense.add_edges_from(edge_list_dense)
             graphs.append(graph_dense)
+
         for size in [9]:
             graph_sparse = rx.undirected_gnp_random_graph(size, 0.3, seed=seed)
-            edge_list_sparse = graph_sparse.edge_list()
-            edge_list_sparse = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_sparse]
-            graph_sparse.clear_edges()
-            graph_sparse.add_edges_from(edge_list_sparse)
+            #edge_list_sparse = graph_sparse.edge_list()
+            #edge_list_sparse = [edge + (float(rng.choice([0.25, 0.5, 0.75, 1])),) for edge in edge_list_sparse]
+            #graph_sparse.clear_edges()
+            #graph_sparse.add_edges_from(edge_list_sparse)
             graphs.append(graph_sparse)
+
+        for graph in graphs:
+            for n in graph.node_indices():
+                graph[n] = rng.uniform(0.25, 1)
         return graphs
     def draw_given_graphs(self, graph_names):
 

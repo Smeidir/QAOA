@@ -10,6 +10,8 @@ def build_ansatz(mode, cost_hamiltonian, qubits, depth , warm_start_seed = None)
             return _build_vanilla_ansatz(cost_hamiltonian, qubits,depth, warm_start_seed)
         case 'multiangle':
             return _build_multiangle_ansatz(cost_hamiltonian, qubits,depth, warm_start_seed)
+        case 'controlled':
+            return _build_constrained_ansatz(cost_hamiltonian, qubits, depth, warm_start_seed)
 
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
@@ -73,4 +75,33 @@ def _build_multiangle_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, d
     return qc
 
         
+def _build_constrained_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, depth: int,
+                          warm_start_seed=None) -> QuantumCircuit:
+    if warm_start_seed is None:
+        return QAOAAnsatz(cost_operator=cost_hamiltonian, reps=depth, flatten=True)
 
+    thetas = warm_start_seed
+    initial_state = QuantumCircuit(num_qubits)
+    if warm_start_seed:
+        for i, theta in enumerate(warm_start_seed):
+            qc.ry(theta, i)
+    else:
+        for i in range(num_qubits):
+            qc.h(i)
+
+    mixer = QuantumCircuit(num_qubits)
+    beta = Parameter("β")
+
+    #go through the neighbourhood/ edges from a given vertex
+    # for all in the neighbourhood, construct a CNOT with control the neighbour, target ancilla qubit
+    # one ancilla qubit for each
+    # make a controlled NOT gate from all the ancilla qubits and to the given vertex
+    # uncompute the ancillas. These can be reused
+    # probably needs a lot of ancillas?
+    for q, theta in enumerate(thetas):
+        mixer.ry(theta, q)
+        mixer.rz(2 * beta, q)
+        mixer.ry(-theta, q)
+
+    return QAOAAnsatz(cost_operator=cost_hamiltonian, mixer_operator=mixer,
+                      initial_state=initial_state, reps=depth, flatten=True)

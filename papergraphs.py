@@ -117,13 +117,11 @@ for task in unfinished:
     ray.cancel(task)
 
 underway_df = pd.DataFrame(ray.get(result_ids))
-underway_df.to_csv(f'results/results_underway.csv', mode='a', header=False)
 data.extend(ray.get(result_ids))
 print(f'Done with Parameters: {settings} at time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
 
 
 df = pd.DataFrame(data)
-df.to_csv(f'results/results_papergraph_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
@@ -131,7 +129,11 @@ subject = "Data from Python Script"
 body = f'Solstorm run -papergraph -  {parameter_string}'
 attachment = f'results/results_papergraph_{parameter_string}.csv'
 
-yag.send(subject=subject, contents=body, attachments=attachment)
+yag.send(subject=subject, contents=body, attachments=df)
 print("Email sent successfully!")
 yag.close()
+
+underway_df.to_csv(f'results/results_underway.csv', mode='a', header=False)
+df.to_csv(f'results/results_papergraph_{parameter_string}.csv')
+
 

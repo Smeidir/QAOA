@@ -8,6 +8,7 @@ import ast
 import networkx as nx
 from tqdm import tqdm
 from src.qaoa.models.MaxCutProblem import MaxCutProblem
+from io import StringIO
 
 
 problem = MaxCutProblem()
@@ -123,13 +124,23 @@ print(f'Done with Parameters: {settings} at time: {time.strftime("%Y-%m-%d %H:%M
 
 df = pd.DataFrame(data)
 
+# Convert DataFrame to string buffer instead of saving to file first
+buffer = StringIO()
+df.to_csv(buffer)
+buffer.seek(0)
+
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
 body = f'Solstorm run -papergraph -  {parameter_string}'
-attachment = f'results/results_papergraph_{parameter_string}.csv'
 
-yag.send(subject=subject, contents=body, attachments=df)
+# Send the buffer as attachment with a filename
+yag.send(
+    to=recipient,
+    subject=subject, 
+    contents=body, 
+    attachments={"results_papergraph.csv": buffer.getvalue()}
+)
 print("Email sent successfully!")
 yag.close()
 

@@ -8,7 +8,7 @@ import ast
 import networkx as nx
 from tqdm import tqdm
 from src.qaoa.models.MaxCutProblem import MaxCutProblem
-from io import StringIO
+import os
 
 
 problem = MaxCutProblem()
@@ -117,34 +117,28 @@ with tqdm(total=len(futures), desc="Processing tasks") as pbar:
 for task in unfinished:
     ray.cancel(task)
 
+    # Create the directory if it doesn't exist
+save_dir = "../../quintonf/results"
+os.makedirs(save_dir, exist_ok=True)
+
+# Update all references to the results directory
 underway_df = pd.DataFrame(ray.get(result_ids))
+underway_df.to_csv(f'{save_dir}/results_underway.csv', mode='a', header=False)
+
 data.extend(ray.get(result_ids))
 print(f'Done with Parameters: {settings} at time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
 
 
 df = pd.DataFrame(data)
-
-# Convert DataFrame to string buffer instead of saving to file first
-buffer = StringIO()
-df.to_csv(buffer)
-buffer.seek(0)
+df.to_csv(f'{save_dir}/results_papergraph_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
 body = f'Solstorm run -papergraph -  {parameter_string}'
+attachment = f'{save_dir}/results_papergraph_{parameter_string}.csv'
 
-# Send the buffer as attachment with a filename
-yag.send(
-    to=recipient,
-    subject=subject, 
-    contents=body, 
-    attachments={"results_papergraph.csv": buffer.getvalue()}
-)
+yag.send(subject=subject, contents=body, attachments=attachment)
 print("Email sent successfully!")
 yag.close()
-
-underway_df.to_csv(f'results/results_underway.csv', mode='a', header=False)
-df.to_csv(f'results/results_papergraph_{parameter_string}.csv')
-
 

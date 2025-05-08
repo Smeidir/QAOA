@@ -161,6 +161,8 @@ class MaxCutProblem():
         for graph in graphs:
             for n in graph.node_indices():
                 graph[n] = rng.uniform(0.25, 1)
+
+        graphs = [graphs[1], graphs[3]]
         return graphs
     def draw_given_graphs(self, graph_names):
 

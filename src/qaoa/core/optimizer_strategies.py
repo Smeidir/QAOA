@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from scipy.optimize import minimize
 import numpy as np
 from qiskit.quantum_info import Statevector, DensityMatrix
-from qiskit_ibm_runtime import EstimatorV2 as Estimator
+from qiskit_aer.primitives import EstimatorV2 as Estimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 maxiter = 5000
 
@@ -38,7 +38,7 @@ class EstimatorOptimizer(QAOAOptimizerStrategy):
     def __init__(self, optimizer, tol, backend, shots, mitigation_fn=None):
         super().__init__(optimizer, tol)
         
-        self.estimator = Estimator(mode=backend)
+        self.estimator = Estimator.from_backend(backend=backend)
         self.estimator.options.default_shots = shots
         if mitigation_fn:
             mitigation_fn(self.estimator)

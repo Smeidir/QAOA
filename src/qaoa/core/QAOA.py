@@ -6,8 +6,6 @@ import rustworkx as rx
 from matplotlib import pyplot as plt
 from qiskit.circuit.library import HGate, QAOAAnsatz
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit_ibm_runtime import EstimatorV2 as Estimator
-from qiskit_ibm_runtime import SamplerV2 as Sampler
 from qiskit_optimization.converters import QuadraticProgramToQubo
 from qiskit_optimization.translators import to_ising
 from scipy.optimize import minimize

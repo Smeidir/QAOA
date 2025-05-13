@@ -4,6 +4,7 @@ import os, time, threading, sqlite3
 import ray
 from tqdm import tqdm
 
+from qaoa.models import params
 from queueray import RunQueue
 from worker   import Runner
 
@@ -25,7 +26,7 @@ queue = RunQueue.options(
 # ---------------------------------------------------------------------
 
 cluster_cpus = int(ray.cluster_resources().get("CPU", 0))
-cpus_per_worker = 4  # must match @ray.remote(num_cpus=...)
+cpus_per_worker = params.CPUS_PER_WORKER  # must match @ray.remote(num_cpus=...)
 
 num_workers = cluster_cpus // cpus_per_worker
 

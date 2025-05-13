@@ -3,8 +3,9 @@ import ray, json, pickle, pathlib, pandas as pd, time, socket
 from pathlib import Path
 from src.qaoa.core.QAOA import QAOArunner
 import json_tricks
+from src.qaoa.models import params
 
-@ray.remote(num_cpus=1)
+@ray.remote(num_cpus=params.CPUS_PER_WORKER)
 class Runner:
     """
     One Ray actor = one worker process that repeatedly:

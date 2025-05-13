@@ -27,7 +27,7 @@ if local:
     settings = ast.literal_eval(settings)
     print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
-@ray.remote(num_cpus =2)
+@ray.remote(num_cpus =4)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
@@ -118,7 +118,7 @@ for task in unfinished:
     ray.cancel(task)
 
     # Create the directory if it doesn't exist
-save_dir = "../../quintonf/results"
+save_dir = "./results"
 os.makedirs(save_dir, exist_ok=True)
 
 # Update all references to the results directory

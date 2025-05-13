@@ -19,7 +19,7 @@ class RunQueue:
         with closing(self._conn()) as db:
             cur = db.cursor()
             cur.execute("""
-              UPDATE runs SET state='running', node=?, started_at=CURRENT_TIMESTAMP
+              UPDATE runs SET state='running', started_at=CURRENT_TIMESTAMP
               WHERE id = (
                 SELECT id FROM runs WHERE state='pending' LIMIT 1
               )
@@ -36,7 +36,7 @@ class RunQueue:
         with closing(self._conn()) as db:
             db.execute("""
               UPDATE runs
-              SET state='done', finished_at=CURRENT_TIMESTAMP, artefact_path=?
+              SET state='done', finished_at=CURRENT_TIMESTAMP, node=?,artefact_path=?
               WHERE id=?""", (results_json, run_id))
             db.commit()
 

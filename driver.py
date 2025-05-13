@@ -23,10 +23,15 @@ queue = RunQueue.options(
 # 3.  Launch worker actors and kick off their run loop
 #     num_cpus per Runner is defined in worker.py (@ray.remote(num_cpus=…))
 # ---------------------------------------------------------------------
-num_workers = 16 #int(os.environ.get("NUM_WORKERS", 64))
-workers     = [Runner.remote(queue) for _ in range(num_workers)]
-for w in workers:
-    w.run_forever.remote()
+
+cluster_cpus = int(ray.cluster_resources().get("CPU", 0))
+cpus_per_worker = 4  # must match @ray.remote(num_cpus=...)
+
+num_workers = cluster_cpus // cpus_per_worker
+
+print(f"Launching {num_workers} workers ({cpus_per_worker} CPUs each) across {cluster_cpus} total CPUs")
+
+workers = [Runner.remote(queue) for _ in range(num_workers)]
 
 # ---------------------------------------------------------------------
 # 4.  Progress bar (tqdm) that updates every 5 s

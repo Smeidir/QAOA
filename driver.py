@@ -4,7 +4,7 @@ import os, time, threading, sqlite3
 import ray
 from tqdm import tqdm
 
-from qaoa.models import params
+from src.qaoa.models import params
 from queueray import RunQueue
 from worker   import Runner
 

@@ -9,13 +9,13 @@ from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_optimization.converters import QuadraticProgramToQubo
 from qiskit_optimization.translators import to_ising
 from scipy.optimize import minimize
-from qaoa.models import params
-from qaoa.core.parameter_init import get_init_params
-from qaoa.core.backend_builder import get_backend
-from qaoa.models.solver import create_solver
-from qaoa.utils.helper_functions import to_bitstring,to_bitstring_str
-from qaoa.core.ansatz_constructor import build_ansatz 
-from qaoa.core.optimizer_strategies import (
+from src.qaoa.models import params
+from src.qaoa.core.parameter_init import get_init_params
+from src.qaoa.core.backend_builder import get_backend
+from src.qaoa.models.solver import create_solver
+from src.qaoa.utils.helper_functions import to_bitstring,to_bitstring_str
+from src.qaoa.core.ansatz_constructor import build_ansatz 
+from src.qaoa.core.optimizer_strategies import (
     NoOptimizerStrategy, StatevectorOptimizer,  EstimatorOptimizer
 )
 

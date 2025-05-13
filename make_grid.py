@@ -28,7 +28,6 @@ graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…
 
 # ----------------------------------------------------------------------
 DDL = """
-DROP TABLE IF EXISTS runs;
 CREATE TABLE IF NOT EXISTS runs (
     id            INTEGER PRIMARY KEY,
     params        TEXT,            -- JSON (settings + graph)

@@ -7,4 +7,4 @@ supported_optimizers = [
 ]
 supported_backends = ['statevector', 'noisy_sampling', 'quantum_backend']
 api_key = '6f1e0cb3bbbbdb6720ed8a755437ee0b3085a54f33274090146083fc7cc0dc9b5aea059a954e1618466f0d290dd5d8f18e8856e7539e5ec7ed38fd167efa0338'
-CPUS_PER_WORKER = 4
+CPUS_PER_WORKER = 10

@@ -9,7 +9,7 @@ import networkx as nx
 import cvxpy as cp
 
 from abc import ABC, abstractmethod
-from qaoa.models.MaxCutProblem import MaxCutProblem
+from src.qaoa.models.MaxCutProblem import MaxCutProblem
 from matplotlib.widgets import Button
 
 def create_solver(graph, problem_type, **kwargs):

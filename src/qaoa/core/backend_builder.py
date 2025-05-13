@@ -3,7 +3,7 @@ from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.fake_provider import FakeBrisbane, FakeMarrakesh
 
-from qaoa.models import params
+from src.qaoa.models import params
 
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:

@@ -24,7 +24,7 @@ class RunQueue:
                 SELECT id FROM runs WHERE state='pending' LIMIT 1
               )
               RETURNING id, params
-            """, (socket.gethostname(),))
+            """)
             row = cur.fetchone()
             db.commit()
             if row is None:
@@ -32,12 +32,12 @@ class RunQueue:
             run_id, params_json = row
             return run_id, json.loads(params_json)
 
-    def mark_done(self, run_id, results_json):
+    def mark_done(self,run_node, run_id, results_json):
         with closing(self._conn()) as db:
             db.execute("""
               UPDATE runs
               SET state='done', finished_at=CURRENT_TIMESTAMP, node=?,artefact_path=?
-              WHERE id=?""", (results_json, run_id))
+              WHERE id=?""", (run_node, results_json, run_id))
             db.commit()
 
     def mark_error(self, run_id, msg, retry=True):

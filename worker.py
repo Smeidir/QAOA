@@ -29,7 +29,7 @@ class Runner:
             run_id, cfg = job
             results_json = self._do_run(run_id, cfg)
             if results_json:
-                self.queue.mark_done.remote(run_id, results_json)
+                self.queue.mark_done.remote(socket.gethostname(),run_id, results_json)
 
     # ────────────────────────────────────────────────────────────────
     #  single-job execution

@@ -16,8 +16,6 @@ class Runner:
 
     def __init__(self, queue, outroot="/scratch/qresults"):
         self.queue   = queue
-        self.outroot = Path(outroot)
-        self.outroot.mkdir(parents=True, exist_ok=True)
 
     # ────────────────────────────────────────────────────────────────
     #  public entry-point (called once from driver.py)
@@ -50,11 +48,8 @@ class Runner:
         """
         graph_file  = pathlib.Path(cfg.pop("graph_path"))
         graph_label = cfg.pop("graph_label", graph_file.stem)
-        seed        = cfg.get("seed")             # leave in cfg for logging
 
         # ---- output folder for this run --------------------------------
-        run_dir = self.outroot / f"{run_id}_{graph_label}"
-        run_dir.mkdir(exist_ok=True)
 
         # ---- load the graph (retworkx pickle) --------------------------
         with graph_file.open("rb") as f:
@@ -69,7 +64,6 @@ class Runner:
         result_dict = qaoa.to_dict()
         result_dict.update({
             "graph_label": graph_label,
-            "seed":        seed,
             **cfg          # echoes hyper-params for downstream analysis
         })
 

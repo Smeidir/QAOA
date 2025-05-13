@@ -1,6 +1,6 @@
 # driver.py ───────────────────────────────────────────────────────────
 import os, time, threading, sqlite3
-
+x
 import ray
 from tqdm import tqdm
 
@@ -59,6 +59,9 @@ def monitor():
             pbar.update(delta)
             prev = finished
         time.sleep(5)
+    delta = finished - prev
+    if delta > 0:
+        pbar.update(delta)
 
 threading.Thread(target=monitor, daemon=True).start()
 

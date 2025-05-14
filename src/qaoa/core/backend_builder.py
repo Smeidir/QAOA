@@ -10,7 +10,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "10"
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.fake_provider import FakeBrisbane, FakeMarrakesh
+from qiskit_ibm_runtime.fake_provider import FakeMarrakesh
 
 from src.qaoa.models import params
 def get_backend(mode, amount_shots=5000, verbose=False):

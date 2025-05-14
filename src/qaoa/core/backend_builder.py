@@ -1,3 +1,12 @@
+
+import os
+# Must be at top, before importing Aer
+os.environ["OMP_NUM_THREADS"] = "16"
+os.environ["OPENBLAS_NUM_THREADS"] = "16"
+os.environ["MKL_NUM_THREADS"] = "16"
+os.environ["NUMEXPR_NUM_THREADS"] = "16"
+
+
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
@@ -13,7 +22,7 @@ def get_backend(mode, amount_shots=5000, verbose=False):
                 print("You are running on the local ",print(backend.configuration()))
 
         case 'noisy_sampling':
-            backend = AerSimulator.from_backend(FakeMarrakesh(),shot_branching_sampling_enable = True)
+            backend = AerSimulator.from_backend(FakeMarrakesh())
 
             if verbose:
                 print("Running on: AerSimulator with noise.", print(backend.configuration().to_dict()))

@@ -4,7 +4,6 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime.fake_provider import FakeBrisbane, FakeMarrakesh
 
 from src.qaoa.models import params
-
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':

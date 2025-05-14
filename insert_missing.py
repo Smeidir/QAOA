@@ -20,9 +20,15 @@ DB_PATH = "qruns.db"           # adjust if yours lives elsewhere
 # Regex that matches the log lines
 PATTERN = re.compile(
     r"^For (?P<variant>\w+) and depth (?P<depth>\d+) the combination "
-    r"\(warm_start=(?P<warm_start>\w+), hamming_dist (?P<hdist>\d), graph=>>(?P<graph>[^<]+)<<.*\) "
+    r"\(warm_start=(?P<warm_start>\w+), hamming_dist (?P<hdist>\d), graph=>>graph6<<(?P<graph>[^\)]+)\) "
     r"has (?P<done>\d+) entries and needs (?P<need>\d+) more\."
 )
+GRAPH_MAP = {
+    "Emz_":           "paper1_0.pkl",
+    "HmzffJz":       "paper1_1.pkl",
+    "KmzffJznl{hU":  "paper1_2.pkl",
+    "Hh_iS_u":       "paper1_3.pkl",
+}
 
 
 def make_row(params: dict):
@@ -58,7 +64,7 @@ def main(txt_path: pathlib.Path, target_reps: int):
                 "warm_start":   m["warm_start"] == "True",
                 "problem_type": "minvertexcover",
                 "hamming_dist": int(m["hdist"]),
-                "graph_path": f"graphs_paper1/{m['graph']}.pkl",
+                "graph_path": f"graphs_paper1/{GRAPH_MAP[m['graph']]}",
 
             }
 
@@ -83,4 +89,5 @@ if __name__ == "__main__":
     ap.add_argument("--reps", type=int, default=50,
                     help="Target repetitions (informational only)")
     args = ap.parse_args()
+    
     main(pathlib.Path(args.logfile), args.reps)

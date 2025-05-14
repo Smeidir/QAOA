@@ -1,10 +1,10 @@
 
 import os
 # Must be at top, before importing Aer
-os.environ["OMP_NUM_THREADS"] = "16"
-os.environ["OPENBLAS_NUM_THREADS"] = "16"
-os.environ["MKL_NUM_THREADS"] = "16"
-os.environ["NUMEXPR_NUM_THREADS"] = "16"
+os.environ["OMP_NUM_THREADS"] = "10"
+os.environ["OPENBLAS_NUM_THREADS"] = "10"
+os.environ["MKL_NUM_THREADS"] = "10"
+os.environ["NUMEXPR_NUM_THREADS"] = "10"
 
 
 from qiskit_aer import AerSimulator

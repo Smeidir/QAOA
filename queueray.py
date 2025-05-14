@@ -21,7 +21,12 @@ class RunQueue:
             cur.execute("""
               UPDATE runs SET state='running', started_at=CURRENT_TIMESTAMP
               WHERE id = (
-                SELECT id FROM runs WHERE state='pending' LIMIT 1
+                SELECT id FROM runs
+                WHERE state='pending'
+                ORDER BY
+                  json_extract(params, '$.depth') DESC,
+                  json_extract(params, '$.graph_path') DESC
+                LIMIT 1
               )
               RETURNING id, params
             """)

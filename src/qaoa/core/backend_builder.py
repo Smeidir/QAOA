@@ -1,10 +1,18 @@
+
+import os
+# Must be at top, before importing Aer
+os.environ["OMP_NUM_THREADS"] = "10"
+os.environ["OPENBLAS_NUM_THREADS"] = "10"
+os.environ["MKL_NUM_THREADS"] = "10"
+os.environ["NUMEXPR_NUM_THREADS"] = "10"
+
+
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_runtime.fake_provider import FakeBrisbane, FakeMarrakesh
+from qiskit_ibm_runtime.fake_provider import FakeMarrakesh
 
-from qaoa.models import params
-
+from src.qaoa.models import params
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':

@@ -22,5 +22,6 @@ echo "The job was run on these nodes: $SLURM_JOB_NODELIST"
 module purge
 
 # Running your python file
-module load Anaconda3/2024.02-1
+module load Python/3.10.8-GCCcore-12.2.0
+pip install -r requirements.txt
 python papergraphs.py

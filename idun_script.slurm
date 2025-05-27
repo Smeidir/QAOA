@@ -23,5 +23,6 @@ module purge
 
 # Running your python file
 module load Python/3.10.8-GCCcore-12.2.0
+source myenv/bin/activate
 pip install -r requirements.txt
 python papergraphs.py

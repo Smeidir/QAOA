@@ -4,13 +4,7 @@ import rustworkx as rx
 import numpy as np
 from qiskit_optimization.translators import from_docplex_mp
 
-
-import networkx as nx
-import cvxpy as cp
-
 from abc import ABC, abstractmethod
-from src.qaoa.models.MaxCutProblem import MaxCutProblem
-from matplotlib.widgets import Button
 
 def create_solver(graph, problem_type, **kwargs):
     match problem_type.lower():
@@ -133,43 +127,6 @@ class MaxCutSolver(Solver):
             print(solution.get_objective_value(), bitstring)
         return bitstring, solution.get_objective_value()
 
-    def solve_relaxed(self, method = 'GW'):
-        """ Solves the relaxed version of a problem, where the X values are continous between 0 and 1. 
-        Method keyword is for future use with different relaxed solving methods. Default is Goemanns-Williamson."""
-
-        if method == 'GW':
-            W = np.zeros((len(self.graph), len(self.graph)))
-            for (i, j, w) in self.graph.weighted_edge_list():
-                W[i, j] = w
-                W[j, i] = w  # Assuming the graph is undirected
-
-            n = W.shape[0]
-            X = cp.Variable((n, n), PSD=True)  # PSD: Positive semidefinite
-            constraints = [cp.diag(X) == 1]  # Diagonal constraints X_ii = 1
-
-            # Objective function
-            objective = cp.Maximize(cp.sum(cp.multiply(W, (1 - X))) / 4)
-
-            # Solve
-            problem = cp.Problem(objective, constraints)
-            problem.solve()
-            # Eigendecomposition of X
-            eigenvalues, eigenvectors = np.linalg.eigh(X.value)
-
-            # Filter out negligible eigenvalues (numerical precision issues)
-            valid_indices = eigenvalues > 1e-10
-            eigenvalues = eigenvalues[valid_indices]
-            eigenvectors = eigenvectors[:, valid_indices]
-
-            # Form the vectors V (scaled by square root of eigenvalues)
-            V = eigenvectors @ np.diag(np.sqrt(eigenvalues))
-            random_hyperplane = np.random.randn(V.shape[1])
-
-            # Assign each vertex to a partition based on the sign of the dot product with the hyperplane
-            assignments = np.sign(V @ random_hyperplane)
-            
-            assignments = np.where(assignments == -1, 0, assignments)
-            return assignments, self.evaluate_bitstring(assignments)
 
 
 
@@ -378,5 +335,42 @@ def main():
     plt.show()
 
 
+    def solve_relaxed(self, method = 'GW'):
+       Solves the relaxed version of a problem, where the X values are continous between 0 and 1. 
+        Method keyword is for future use with different relaxed solving methods. Default is Goemanns-Williamson.
+
+        if method == 'GW':
+            W = np.zeros((len(self.graph), len(self.graph)))
+            for (i, j, w) in self.graph.weighted_edge_list():
+                W[i, j] = w
+                W[j, i] = w  # Assuming the graph is undirected
+
+            n = W.shape[0]
+            X = cp.Variable((n, n), PSD=True)  # PSD: Positive semidefinite
+            constraints = [cp.diag(X) == 1]  # Diagonal constraints X_ii = 1
+
+            # Objective function
+            objective = cp.Maximize(cp.sum(cp.multiply(W, (1 - X))) / 4)
+
+            # Solve
+            problem = cp.Problem(objective, constraints)
+            problem.solve()
+            # Eigendecomposition of X
+            eigenvalues, eigenvectors = np.linalg.eigh(X.value)
+
+            # Filter out negligible eigenvalues (numerical precision issues)
+            valid_indices = eigenvalues > 1e-10
+            eigenvalues = eigenvalues[valid_indices]
+            eigenvectors = eigenvectors[:, valid_indices]
+
+            # Form the vectors V (scaled by square root of eigenvalues)
+            V = eigenvectors @ np.diag(np.sqrt(eigenvalues))
+            random_hyperplane = np.random.randn(V.shape[1])
+
+            # Assign each vertex to a partition based on the sign of the dot product with the hyperplane
+            assignments = np.sign(V @ random_hyperplane)
+            
+            assignments = np.where(assignments == -1, 0, assignments)
+            return assignments, self.evaluate_bitstring(assignments)
 if __name__ == "__main__":
     main()"""

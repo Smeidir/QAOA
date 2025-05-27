@@ -17,7 +17,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = False
+local = True
 
 if not local:
     with open("qaoa_settings.txt", "r") as f:
@@ -67,7 +67,7 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 50
+n_times = 5
 all_combos *= n_times
 
 

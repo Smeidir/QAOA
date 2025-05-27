@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from scipy.optimize import minimize
 import numpy as np
-from qiskit.quantum_info import Statevector, DensityMatrix
+from qiskit.quantum_info import Statevector
 from qiskit_aer.primitives import EstimatorV2 as Estimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 maxiter = 5000

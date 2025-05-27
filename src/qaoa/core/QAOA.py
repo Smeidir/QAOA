@@ -1,6 +1,6 @@
 import time
 import matplotlib
-from qiskit.quantum_info import Statevector, DensityMatrix,Operator, SparsePauliOp
+from qiskit.quantum_info import Operator, SparsePauliOp
 import numpy as np
 import rustworkx as rx
 from matplotlib import pyplot as plt
@@ -8,7 +8,6 @@ from qiskit.circuit.library import HGate, QAOAAnsatz
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_optimization.converters import QuadraticProgramToQubo
 from qiskit_optimization.translators import to_ising
-from scipy.optimize import minimize
 from src.qaoa.models import params
 from src.qaoa.core.parameter_init import get_init_params
 from src.qaoa.core.backend_builder import get_backend

@@ -1,0 +1,5 @@
+MaxCutProblem
+QAOA
+graphNN
+helper_functions
+papergraphs

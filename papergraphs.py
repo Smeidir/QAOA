@@ -1,13 +1,14 @@
 import itertools
 import time
-from QAOA import QAOArunner
+from src.qaoa.core.QAOA import QAOArunner
 import pandas as pd
 import ray
 import yagmail
 import ast
 import networkx as nx
 from tqdm import tqdm
-from MaxCutProblem import MaxCutProblem
+from src.qaoa.models.MaxCutProblem import MaxCutProblem
+import os
 
 
 problem = MaxCutProblem()
@@ -16,26 +17,24 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = True
+local = False
 
 if not local:
-    with open("test_settings.txt", "r") as f:
+    with open("qaoa_settings.txt", "r") as f:
         settings = ast.literal_eval(f.read().strip())
 if local: 
-    settings = "[{'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 10, 'warm_start': True}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': False}, {'backend_mode': 'noisy_sampling', 'qaoa_variant': 'vanilla', 'param_initialization': 'static', 'depth': 10, 'warm_start': True}]"
+    settings = "[{'backend_mode': 'statevector', 'problem_type': 'minvertexcover','qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': False}, {'backend_mode': 'statevector','problem_type': 'minvertexcover', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': True}]"
     settings = ast.literal_eval(settings)
+    print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
-@ray.remote(num_cpus = 4)
+@ray.remote(num_cpus =2)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
     qaoa.run()
-    return { **parameters,'graph_size': len(graph.nodes()), 'graph_name' : name, #TODO: move into QAOArunner class
-         'time_elapsed': qaoa.time_elapsed, 'quantum_func_evals': qaoa.fev, 'ratio' : qaoa.objective_value/qaoa.classical_objective_value,
-        'quantum_solution':qaoa.solution, 'quantum_obj_value' : qaoa.objective_value, 
-        'classic_solution' : qaoa.classical_solution, 'classic_value': qaoa.classical_objective_value , 
-        'final_params': qaoa.final_params, 'percent_measure_optimal': qaoa.get_prob_measure_optimal()
-                        }
+    return_dict = qaoa.to_dict()
+    return_dict['graph_name'] = name
+    return return_dict
 
 if ray.is_initialized():
     ray.shutdown()
@@ -43,7 +42,7 @@ if ray.is_initialized():
 ray.init(log_to_driver=True)
 
 
-graphs= [problem.get_erdos_renyi_graphs([5,7,9])]
+graphs= [problem.get_erdos_renyi_graphs_paper1()]
 graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
@@ -84,25 +83,19 @@ parameter_set = []
 keys_with_differences = []
 
 keys = settings[0].keys()
+parameter_dict = {}
 for key in keys:
-    values = {d[key] for d in settings}
-    flag= False
-    if len(values) > 1:  # If there are multiple unique values for this key
-        keys_with_differences.append(key)
-        flag=True
-    if flag:
-        keys_with_differences.append(values)
-
-parameter_set = keys_with_differences
+    values = set([d[key] for d in settings])
+    parameter_dict[key] = values
 
 
+parameter_string = str(parameter_dict)
 
-parameter_string = [str(x) + "_" for x in parameter_set]
-parameter_string = "".join(parameter_string)
-parameter_string = parameter_string[0:-1]
-
-print('Parameter set', parameter_set)
-print('Parameter string, used for naming .csv files: ', parameter_string)
+print('Parameter set', keys)
+# Clean parameter string for Windows filenames (removing ':' and "'" characters)
+clean_parameter_string = parameter_string.replace(":", "").replace(" ","")
+print('Parameter string, used for naming .csv files: ', clean_parameter_string)
+parameter_string = clean_parameter_string
 
 futures = [parallell_runner.remote(parameters, graph, name) for parameters, graph,name in all_combos]
 
@@ -124,20 +117,26 @@ with tqdm(total=len(futures), desc="Processing tasks") as pbar:
 for task in unfinished:
     ray.cancel(task)
 
+    # Create the directory if it doesn't exist
+save_dir = "../../quintonf/results"
+os.makedirs(save_dir, exist_ok=True)
+
+# Update all references to the results directory
 underway_df = pd.DataFrame(ray.get(result_ids))
-underway_df.to_csv(f'results/results_underway.csv', mode='a', header=False)
+underway_df.to_csv(f'{save_dir}/results_underway.csv', mode='a', header=False)
+
 data.extend(ray.get(result_ids))
 print(f'Done with Parameters: {settings} at time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}')
 
 
 df = pd.DataFrame(data)
-df.to_csv(f'results/results_papergraph_{parameter_string}.csv')
+df.to_csv(f'{save_dir}/results_papergraph_{parameter_string}.csv')
 
 yag = yagmail.SMTP("torbjorn.solstorm@gmail.com", email_password)
 recipient = "torbjorn.smed@gmail.com"
 subject = "Data from Python Script"
 body = f'Solstorm run -papergraph -  {parameter_string}'
-attachment = f'results/results_papergraph_{parameter_string}.csv'
+attachment = f'{save_dir}/results_papergraph_{parameter_string}.csv'
 
 yag.send(subject=subject, contents=body, attachments=attachment)
 print("Email sent successfully!")

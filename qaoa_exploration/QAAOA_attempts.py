@@ -23,7 +23,7 @@ from qiskit_optimization.algorithms import MinimumEigenOptimizer
 from qiskit_optimization.algorithms import (
     MinimumEigenOptimizer,
     RecursiveMinimumEigenOptimizer)
-from solver import Solver
+from src.qaoa.solver import Solver
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_algorithms import QAOA
 

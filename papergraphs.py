@@ -17,7 +17,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = False
+local = True
 
 if not local:
     with open("qaoa_settings.txt", "r") as f:
@@ -25,7 +25,7 @@ if not local:
 if local: 
     settings = "[{'backend_mode': 'statevector', 'problem_type': 'minvertexcover','qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': False}, {'backend_mode': 'statevector','problem_type': 'minvertexcover', 'qaoa_variant': 'vanilla', 'param_initialization': 'gaussian', 'depth': 1, 'warm_start': True}]"
     settings = ast.literal_eval(settings)
-    print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
+    print(' You are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
 @ray.remote(num_cpus =4)
 def parallell_runner(parameters, graph, name):

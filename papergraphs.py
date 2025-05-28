@@ -27,7 +27,7 @@ if local:
     settings = ast.literal_eval(settings)
     print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
-@ray.remote(num_cpus =2)
+@ray.remote(num_cpus =4)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
@@ -43,6 +43,7 @@ ray.init(log_to_driver=True)
 
 
 graphs= [problem.get_erdos_renyi_graphs_paper1()]
+graphs = graphs[3]
 graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?

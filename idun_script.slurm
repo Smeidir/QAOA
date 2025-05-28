@@ -5,7 +5,7 @@
 #SBATCH --partition=CPUQ          # Asking for a GPU
 #SBATCH --mem=16G                 # Asking for 16GB RAM
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=4
 #SBATCH --output=output.txt      # Specifying 'stdout'
 #SBATCH --error=output.err        # Specifying 'stderr'
 
@@ -24,4 +24,4 @@ module purge
 # Running your python file
 module load Python/3.10.8-GCCcore-12.2.0
 source myenv/bin/activate
-python benchmark_dm.py --qubits 6 8 10 12 --shots 5000 --csv cpu_timings.csv
+python papergraphs.py

@@ -27,7 +27,7 @@ if local:
     settings = ast.literal_eval(settings)
     print(' YOu are running without reading from qaoa_settings.txt - you should never see this message on solstorm!')
 
-@ray.remote(num_cpus =4)
+@ray.remote(num_cpus =2)
 def parallell_runner(parameters, graph, name):
     qaoa = QAOArunner(graph, **parameters)
     qaoa.build_circuit()
@@ -67,7 +67,7 @@ for liste in all_combos:
     combos_with_name.append(liste2)
 all_combos = combos_with_name
 
-n_times = 5
+n_times = 50
 all_combos *= n_times
 
 

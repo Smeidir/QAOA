@@ -24,4 +24,4 @@ module purge
 # Running your python file
 module load Python/3.10.8-GCCcore-12.2.0
 source myenv/bin/activate
-python papergraphs.py
+python benchmark_dm.py --qubits 6 8 10 12 --shots 5000 --csv cpu_timings.csv

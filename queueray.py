@@ -6,7 +6,7 @@ import ray
 
 @ray.remote
 class RunQueue:
-    def __init__(self, db_path="qruns.db"):
+    def __init__(self, db_path="cpu_runs.db"):
         self.db_path = db_path
 
     def _conn(self):

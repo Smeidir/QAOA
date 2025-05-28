@@ -5,7 +5,7 @@
 #SBATCH --partition=CPUQ          # Asking for a GPU
 #SBATCH --mem=16G                 # Asking for 16GB RAM
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=32
 #SBATCH --output=output.txt      # Specifying 'stdout'
 #SBATCH --error=output.err        # Specifying 'stderr'
 

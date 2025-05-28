@@ -46,7 +46,6 @@ graphs= [problem.get_erdos_renyi_graphs_paper1()]
 graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
-graphs =  [problem.get_erdos_renyi_graphs_paper1()[3]]
 combos = [settings, graphs] #settings should be a list of dictionaries .
 
 

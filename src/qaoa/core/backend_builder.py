@@ -9,7 +9,7 @@ from src.qaoa.models import params
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':
-            backend = AerSimulator(method="statevector", device='GPU')
+            backend = AerSimulator(method="statevector", device='GPU',batched_shots_gpu = True)
     
             if verbose:
                 print("You are running on the local ",print(backend.configuration()))

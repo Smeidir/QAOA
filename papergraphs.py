@@ -17,7 +17,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = True
+local = False
 
 if not local:
     with open("qaoa_settings.txt", "r") as f:

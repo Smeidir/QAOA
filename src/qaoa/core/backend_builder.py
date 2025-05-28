@@ -15,7 +15,7 @@ def get_backend(mode, amount_shots=5000, verbose=False):
                 print("You are running on the local ",print(backend.configuration()))
 
         case 'noisy_sampling':
-            backend = AerSimulator.from_backend(FakeMarrakesh(), device='GPU')
+            backend = AerSimulator.from_backend(FakeMarrakesh(), device='GPU',batched_shots_gpu = True)
 
             if verbose:
                 print("Running on: AerSimulator with noise.", print(backend.configuration().to_dict()))

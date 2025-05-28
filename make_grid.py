@@ -14,15 +14,16 @@ import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
 #    (edit here whenever you change an experiment)
 # ----------------------------------------------------------------------
 settings = {
-    "backend_mode":        ["statevector"],              # or ['noisy_sampling']
-    "qaoa_variant":        ["vanilla"],
+    "backend_mode":        ["noisy_sampling"],              # or ['noisy_sampling']
+    "qaoa_variant":        ["multiangle"],
     "param_initialization":["gaussian"],
-    "depth":               [1, 2],
-    "warm_start":          [True],
+    "depth":               [4,7],
+    "warm_start":          [False,True],
     "problem_type":        ["minvertexcover"]
 }
 
 graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
+
 
 
 

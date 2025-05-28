@@ -8,6 +8,8 @@ from src.qaoa.models import params
 from queueray import RunQueue
 from worker   import Runner
 
+
+database = 'cpu_runs.db'
 # ---------------------------------------------------------------------
 # 1.  Connect to (or start) Ray
 # ---------------------------------------------------------------------
@@ -37,7 +39,7 @@ workers = [Runner.remote(queue) for _ in range(num_workers)]
 # ---------------------------------------------------------------------
 # 4.  Progress bar (tqdm) that updates every 5 s
 # ---------------------------------------------------------------------
-with sqlite3.connect("qruns.db") as db:
+with sqlite3.connect(database) as db:
     total_jobs = db.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
 
 pbar = tqdm(total=total_jobs,
@@ -48,7 +50,7 @@ pbar = tqdm(total=total_jobs,
 def monitor():
     prev = 0
     while True:
-        with sqlite3.connect("qruns.db") as db:
+        with sqlite3.connect(database) as db:
             done  = db.execute("SELECT COUNT(*) FROM runs "
                                "WHERE state='done'").fetchone()[0]
             error = db.execute("SELECT COUNT(*) FROM runs "

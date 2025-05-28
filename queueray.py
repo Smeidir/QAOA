@@ -4,7 +4,6 @@ from contextlib import closing
 import ray
 
 
-
 @ray.remote
 class RunQueue:
     def __init__(self, db_path="qruns.db"):

@@ -5,7 +5,7 @@ from src.qaoa.core.QAOA import QAOArunner
 import json_tricks
 from src.qaoa.models import params
 
-@ray.remote(num_cpus=params.CPUS_PER_WORKER)
+@ray.remote(num_gpus=8)
 class Runner:
     """
     One Ray actor = one worker process that repeatedly:

@@ -7,7 +7,7 @@ from tqdm import tqdm
 from src.qaoa.models import params
 from queueray import RunQueue
 from worker   import Runner
-
+database = 'gpu_runs.db'
 # ---------------------------------------------------------------------
 # 1.  Connect to (or start) Ray
 # ---------------------------------------------------------------------
@@ -25,19 +25,19 @@ queue = RunQueue.options(
 #     num_cpus per Runner is defined in worker.py (@ray.remote(num_cpus=…))
 # ---------------------------------------------------------------------
 
-cluster_cpus = int(ray.cluster_resources().get("CPU", 0))
-cpus_per_worker = params.CPUS_PER_WORKER  # must match @ray.remote(num_cpus=...)
+cluster_gpus = int(ray.cluster_resources().get("GPU", 0))
+gpus_per_worker = 8  # must match @ray.remote(num_cpus=...)
 
-num_workers = cluster_cpus // cpus_per_worker
+num_workers = cluster_gpus // gpus_per_worker
 
-print(f"Launching {num_workers} workers ({cpus_per_worker} CPUs each) across {cluster_cpus} total CPUs")
+print(f"Launching {num_workers} workers ({gpus_per_worker} CPUs each) across {cluster_gpus} total GPUs")
 
 workers = [Runner.remote(queue) for _ in range(num_workers)]
 
 # ---------------------------------------------------------------------
 # 4.  Progress bar (tqdm) that updates every 5 s
 # ---------------------------------------------------------------------
-with sqlite3.connect("qruns.db") as db:
+with sqlite3.connect(database) as db:
     total_jobs = db.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
 
 pbar = tqdm(total=total_jobs,
@@ -48,7 +48,7 @@ pbar = tqdm(total=total_jobs,
 def monitor():
     prev = 0
     while True:
-        with sqlite3.connect("qruns.db") as db:
+        with sqlite3.connect(database) as db:
             done  = db.execute("SELECT COUNT(*) FROM runs "
                                "WHERE state='done'").fetchone()[0]
             error = db.execute("SELECT COUNT(*) FROM runs "

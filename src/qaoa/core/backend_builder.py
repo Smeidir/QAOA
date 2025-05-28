@@ -16,7 +16,7 @@ from src.qaoa.models import params
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':
-            backend = AerSimulator(method="statevector")
+            backend = AerSimulator(method="statevector", max_parallel_experiments=50)
     
             if verbose:
                 print("You are running on the local ",print(backend.configuration()))

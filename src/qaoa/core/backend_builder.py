@@ -9,13 +9,13 @@ from src.qaoa.models import params
 def get_backend(mode, amount_shots=5000, verbose=False):
     match mode:
         case 'statevector':
-            backend = AerSimulator(method="statevector", device='gpu')
+            backend = AerSimulator(method="statevector", device='GPU')
     
             if verbose:
                 print("You are running on the local ",print(backend.configuration()))
 
         case 'noisy_sampling':
-            backend = AerSimulator.from_backend(FakeMarrakesh(), device='gpu')
+            backend = AerSimulator.from_backend(FakeMarrakesh(), device='GPU')
 
             if verbose:
                 print("Running on: AerSimulator with noise.", print(backend.configuration().to_dict()))

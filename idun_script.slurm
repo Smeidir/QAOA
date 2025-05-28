@@ -25,4 +25,6 @@ module purge
 module load Python/3.10.8-GCCcore-12.2.0
 source myenv/bin/activate
 pip install -r requirements.txt
+pip uninstall qiskit-aer
+pip install qiskit-aer-gpu
 python papergraphs.py

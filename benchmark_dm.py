@@ -55,7 +55,7 @@ def build_test_circuit() -> "QuantumCircuit":
     """Return the single (largest) circuit you want to benchmark."""
     problem      = MaxCutProblem()
     big_graph    = problem.get_erdos_renyi_graphs_paper1()[2]  # paper1_2.pkl
-    qaoa         = QAOArunner(big_graph)
+    qaoa         = QAOArunner(big_graph, depth=10)
     qaoa.build_circuit()
     circ = qaoa.circuit.copy()
     param_dict = {param: 0.1 for param in circ.parameters}  # or random values, e.g. np.random.rand()

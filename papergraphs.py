@@ -17,7 +17,7 @@ with open("email_credentials.txt", "r") as f:
     email_password = f.read().strip()
 
 
-local = True
+local = False
 
 if not local:
     with open("qaoa_settings.txt", "r") as f:
@@ -46,6 +46,7 @@ graphs= [problem.get_erdos_renyi_graphs_paper1()]
 graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?
+graphs = problem.get_erdos_renyi_graphs_paper1()[2] 
 combos = [settings, graphs] #settings should be a list of dictionaries .
 
 

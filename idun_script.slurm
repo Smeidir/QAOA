@@ -23,5 +23,7 @@ module purge
 
 # Running your python file
 module load Python/3.10.8-GCCcore-12.2.0
+module load foss/2024a
 source myenv/bin/activate
-python papergraphs.py
+pip install cuQuantum
+python benchmark_dm.py

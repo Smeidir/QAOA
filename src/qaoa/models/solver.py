@@ -126,6 +126,13 @@ class MaxCutSolver(Solver):
         if self.verbose:
             print(solution.get_objective_value(), bitstring)
         return bitstring, solution.get_objective_value()
+    
+    
+    def solve_relaxed(self, method = 'GW'):
+        """ Solves the relaxed version of a problem, where the X values are continous between 0 and 1. 
+        Method keyword is for future use with different relaxed solving methods. Default is Goemanns-Williamson."""
+
+        raise ValueError('Not implemented yet')
 
 
 

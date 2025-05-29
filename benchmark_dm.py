@@ -22,19 +22,7 @@ from src.qaoa.core.QAOA import QAOArunner
 
 # ──────────────────────────── 1. EDIT HERE ────────────────────────────
 # tag,     method,              device,   extra kwargs passed to AerSimulator()
-SIMS = [
-    ("CPU-Baseline",  "density_matrix",      "CPU", {}),
-    ("CPU-MaxShotSize",  "density_matrix",      "CPU", {'max_shot_size':625}),
-    ("CPU-ParallelShot/Thread 64",  "density_matrix",      "CPU", {'max_parallel_threads': 64,'max_parallel_shots': 64 }),
-    ("CPU-ParallelShot/Thread 1",  "density_matrix",      "CPU", {'max_parallel_threads': 1,'max_parallel_shots': 1 }),
-    ("CPU-ParalellExperiments",  "density_matrix",      "CPU", {'max_parallel_experiments': 0}),
-    ("CPU-Blocking",  "density_matrix",      "CPU", {'blocking_enable':True, 'blocking_qubits': 9}),
-    ("CPU-ShotBranching",  "density_matrix",      "CPU", {'shot_branching_enable':True}),
-    ("CPU-ShotBranchingSampling",  "density_matrix",      "CPU", {'shot_branching_sampling_enable': True}),
-]
-
-"""
-("GPU-Baseline",  "density_matrix",  "GPU", {}),
+SIMS = [("GPU-Baseline",  "density_matrix",  "GPU", {}),
 ("GPU-CuStateVec",  "density_matrix",  "GPU", {"cuStateVec_enable": True}),
 ("GPU-Blocking",  "density_matrix",  "GPU", {'blocking_enable':True, 'blocking_qubits': 9}),
 ("GPU-batchedShots",  "density_matrix",  "GPU", {"batched_shots_gpu": True}),
@@ -45,6 +33,19 @@ SIMS = [
 ("GPU-TensorNet",  "tensor_network",  "GPU", {}),
 ("GPU-TensorNet 12 qubits",  "tensor_network",  "GPU", {'tensor_network_num_sampling_qubits':12}),
 
+]
+
+"""
+
+
+    ("CPU-Baseline",  "density_matrix",      "CPU", {}),
+    ("CPU-MaxShotSize",  "density_matrix",      "CPU", {'max_shot_size':625}),
+    ("CPU-ParallelShot/Thread 64",  "density_matrix",      "CPU", {'max_parallel_threads': 64,'max_parallel_shots': 64 }),
+    ("CPU-ParallelShot/Thread 1",  "density_matrix",      "CPU", {'max_parallel_threads': 1,'max_parallel_shots': 1 }),
+    ("CPU-ParalellExperiments",  "density_matrix",      "CPU", {'max_parallel_experiments': 0}),
+    ("CPU-Blocking",  "density_matrix",      "CPU", {'blocking_enable':True, 'blocking_qubits': 9}),
+    ("CPU-ShotBranching",  "density_matrix",      "CPU", {'shot_branching_enable':True}),
+    ("CPU-ShotBranchingSampling",  "density_matrix",      "CPU", {'shot_branching_sampling_enable': True}),
 
 """
 # ───────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ def build_test_circuit() -> "QuantumCircuit":
     """Return the single (largest) circuit you want to benchmark."""
     problem      = MaxCutProblem()
     big_graph    = problem.get_erdos_renyi_graphs_paper1()[2]  # paper1_2.pkl
-    qaoa         = QAOArunner(big_graph, depth=10)
+    qaoa         = QAOArunner(big_graph, depth=1)
     qaoa.build_circuit()
     circ = qaoa.circuit.copy()
     param_dict = {param: 0.1 for param in circ.parameters}  # or random values, e.g. np.random.rand()

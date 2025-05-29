@@ -25,5 +25,4 @@ module purge
 module load Python/3.10.8-GCCcore-12.2.0
 module load foss/2024a
 source myenv/bin/activate
-pip install cuQuantum
 python benchmark_dm.py

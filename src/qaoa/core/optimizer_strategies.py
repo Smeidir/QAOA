@@ -30,7 +30,7 @@ class StatevectorOptimizer(QAOAOptimizerStrategy):
             return cost
 
         return minimize(cost_func, init_params, method=self.optimizer,
-                        tol=self.tol, options={'maxiter': maxiter})
+                        tol=self.tol, options={'maxiter': 134})
 
 
 

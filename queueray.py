@@ -2,11 +2,12 @@
 import sqlite3, json, time, socket
 from contextlib import closing
 import ray
+from src.qaoa.models import params
 
 
 @ray.remote
 class RunQueue:
-    def __init__(self, db_path="cpu_runs.db"):
+    def __init__(self, db_path=params.db_path):
         self.db_path = db_path
 
     def _conn(self):

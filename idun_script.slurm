@@ -1,11 +1,11 @@
 #!/bin/sh
 #SBATCH --account="ok-iot"      # E.g. "ie-idi" if you belong to IDI
-#SBATCH --job-name="test gpu times"
-#SBATCH --time=0-00:25:00         # format: D-HH:MM:SS
+#SBATCH --job-name="cpu runs big graph"
+#SBATCH --time=2-00:00:00         # format: D-HH:MM:SS
 #SBATCH --partition=CPUQ          # Asking for a GPU
-#SBATCH --mem=16G                 # Asking for 16GB RAM
+#SBATCH --mem=32G                 # Asking for 16GB RAM
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=32
 #SBATCH --output=output.txt      # Specifying 'stdout'
 #SBATCH --error=output.err        # Specifying 'stderr'
 
@@ -25,4 +25,4 @@ module purge
 module load Python/3.10.8-GCCcore-12.2.0
 module load foss/2024a
 source myenv/bin/activate
-python benchmark_dm.py
+python driver.py

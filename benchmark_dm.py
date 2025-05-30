@@ -94,11 +94,14 @@ def main():
             continue
         
         backend = build_backend(method, device, args.shots, noise_model, extra)
-        t0      = time.perf_counter()
-        backend.run(circ).result()
-        dt      = time.perf_counter() - t0
+        total = 0.0
+        for _ in range(args.repeats):           # ── repeat N times ──
+            t0 = time.perf_counter()
+            backend.run(circ).result()
+            total += time.perf_counter() - t0
+        avg = total / args.repeats
         results.append(Result(tag, method, device, args.shots, dt, n_qubits))
-        print(f"[Done] {tag:8s}  {dt:8.3f} s")
+        print(f"[Done] {tag:8s}  avg {avg:8.3f} s over 10 runs")
 
     # ─────────────── print pretty table ───────────────
     hdr = f"{'tag':25} {'method':18} {'dev':6} {'shots':5} {'qubits':6} {'sec':>8}"

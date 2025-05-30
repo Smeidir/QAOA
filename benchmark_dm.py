@@ -88,6 +88,8 @@ def main():
     noise_model = NoiseModel.from_backend(FakeMarrakesh())  # realistic IBM noise
 
     results = []
+    done_init = time.time()
+    print(f"Init done at {time.strftime('%H:%M:%S', time.localtime(done_init))}")
     for tag, method, device, extra in SIMS:
         if device == "GPU" and not cuda_seen:
             print(f"[Skip] {tag}: no GPU visible.")
@@ -99,7 +101,7 @@ def main():
             t0 = time.perf_counter()
             backend.run(circ).result()
             total += time.perf_counter() - t0
-        avg = total / args.repeats
+        avg = total / 10
         results.append(Result(tag, method, device, args.shots, avg, n_qubits))
         print(f"[Done] {tag:8s}  avg {avg:8.3f} s over 10 runs")
 

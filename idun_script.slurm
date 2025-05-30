@@ -5,7 +5,7 @@
 #SBATCH --partition=GPUQ          # Asking for a GPU
 #SBATCH --mem=16G                 # Asking for 16GB RAM
 #SBATCH --nodes=1
-#SBATCH --gres=gpus:8
+#SBATCH --gres=gpu:4
 #SBATCH --output=output.txt      # Specifying 'stdout'
 #SBATCH --error=output.err        # Specifying 'stderr'
 

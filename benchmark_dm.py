@@ -22,7 +22,18 @@ from src.qaoa.core.QAOA import QAOArunner
 
 # ──────────────────────────── 1. EDIT HERE ────────────────────────────
 # tag,     method,              device,   extra kwargs passed to AerSimulator()
-SIMS = [("GPU-Baseline",  "density_matrix",  "GPU", {}),
+SIMS = [("CPU-Baseline",  "density_matrix",      "CPU", {}),
+    ("CPU-MaxShotSize",  "density_matrix",      "CPU", {'max_shot_size':625}),
+    ("CPU-ParallelShot/Thread 64",  "density_matrix",      "CPU", {'max_parallel_threads': 64,'max_parallel_shots': 64 }),
+    ("CPU-ParallelShot/Thread 1",  "density_matrix",      "CPU", {'max_parallel_threads': 1,'max_parallel_shots': 1 }),
+    ("CPU-ParalellExperiments",  "density_matrix",      "CPU", {'max_parallel_experiments': 0}),
+    ("CPU-Blocking",  "density_matrix",      "CPU", {'blocking_enable':True, 'blocking_qubits': 9}),
+    ("CPU-ShotBranching",  "density_matrix",      "CPU", {'shot_branching_enable':True}),
+    ("CPU-ShotBranchingSampling",  "density_matrix",      "CPU", {'shot_branching_sampling_enable': True}),
+]
+
+"""
+("GPU-Baseline",  "density_matrix",  "GPU", {}),
 ("GPU-CuStateVec",  "density_matrix",  "GPU", {"cuStateVec_enable": True}),
 ("GPU-Blocking",  "density_matrix",  "GPU", {'blocking_enable':True, 'blocking_qubits': 9}),
 ("GPU-batchedShots",  "density_matrix",  "GPU", {"batched_shots_gpu": True}),
@@ -33,19 +44,8 @@ SIMS = [("GPU-Baseline",  "density_matrix",  "GPU", {}),
 ("GPU-TensorNet",  "tensor_network",  "GPU", {}),
 ("GPU-TensorNet 12 qubits",  "tensor_network",  "GPU", {'tensor_network_num_sampling_qubits':12}),
 
-]
 
-"""
-
-
-    ("CPU-Baseline",  "density_matrix",      "CPU", {}),
-    ("CPU-MaxShotSize",  "density_matrix",      "CPU", {'max_shot_size':625}),
-    ("CPU-ParallelShot/Thread 64",  "density_matrix",      "CPU", {'max_parallel_threads': 64,'max_parallel_shots': 64 }),
-    ("CPU-ParallelShot/Thread 1",  "density_matrix",      "CPU", {'max_parallel_threads': 1,'max_parallel_shots': 1 }),
-    ("CPU-ParalellExperiments",  "density_matrix",      "CPU", {'max_parallel_experiments': 0}),
-    ("CPU-Blocking",  "density_matrix",      "CPU", {'blocking_enable':True, 'blocking_qubits': 9}),
-    ("CPU-ShotBranching",  "density_matrix",      "CPU", {'shot_branching_enable':True}),
-    ("CPU-ShotBranchingSampling",  "density_matrix",      "CPU", {'shot_branching_sampling_enable': True}),
+    
 
 """
 # ───────────────────────────────────────────────────────────────────────

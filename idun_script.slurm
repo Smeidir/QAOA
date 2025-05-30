@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --account="ok-iot"      # E.g. "ie-idi" if you belong to IDI
 #SBATCH --job-name="test gpu times"
-#SBATCH --time=0-00:15:00         # format: D-HH:MM:SS
+#SBATCH --time=0-00:25:00         # format: D-HH:MM:SS
 #SBATCH --partition=GPUQ          # Asking for a GPU
 #SBATCH --mem=16G                 # Asking for 16GB RAM
 #SBATCH --nodes=1

@@ -4,6 +4,7 @@ import numpy as np
 from qiskit.quantum_info import Statevector, DensityMatrix
 from qiskit_aer.primitives import EstimatorV2 as Estimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
+from time import time
 maxiter = 5000
 
 class QAOAOptimizerStrategy(ABC):
@@ -27,10 +28,11 @@ class StatevectorOptimizer(QAOAOptimizerStrategy):
             sv = Statevector.from_instruction(circuit.assign_parameters(params))
             cost = np.real(sv.expectation_value(hamiltonian))
 
-            return cost
-
-        return minimize(cost_func, init_params, method=self.optimizer,
-                        tol=self.tol, options={'maxiter': maxiter})
+            return cost      
+    
+        result = minimize(cost_func, init_params, method=self.optimizer,
+            tol=self.tol, options={'maxiter': maxiter})
+        return result
 
 
 

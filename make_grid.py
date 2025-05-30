@@ -17,14 +17,16 @@ settings = {
     "backend_mode":        ["noisy_sampling"],              # or ['noisy_sampling']
     "qaoa_variant":        ["multiangle"],
     "param_initialization":["gaussian"],
-    "depth":               [4,7],
-    "warm_start":          [False,True],
+    "depth":               [1,4,7],
+    "warm_start":          [True],
+    "hamming_dist":        [3],
     "problem_type":        ["minvertexcover"]
 }
 
 graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
 
-
+# Filter out specific graphs that should be excluded
+graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0", "paper1_2"]}
 
 
 # ----------------------------------------------------------------------

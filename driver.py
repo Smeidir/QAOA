@@ -9,7 +9,7 @@ from queueray import RunQueue
 from worker   import Runner
 
 
-database = 'cpu_runs.db'
+database = params.db_path
 # ---------------------------------------------------------------------
 # 1.  Connect to (or start) Ray
 # ---------------------------------------------------------------------
@@ -26,7 +26,7 @@ queue = RunQueue.options(
 # 3.  Launch worker actors and kick off their run loop
 #     num_cpus per Runner is defined in worker.py (@ray.remote(num_cpus=…))
 # ---------------------------------------------------------------------
-
+print('We are reading from and updating', database)
 cluster_cpus = int(ray.cluster_resources().get("CPU", 0))
 cpus_per_worker = params.CPUS_PER_WORKER  # must match @ray.remote(num_cpus=...)
 

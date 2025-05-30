@@ -130,7 +130,7 @@ class MaxCutProblem():
 
     def get_erdos_renyi_graphs_paper1(self):
         """This is a pretty specific function for giving 4 graphs, 3 dense and one sparse, of sizes 6, 9 and 12, where the sparse
-        one is size 9. That's why it's pretty hardcoded. 
+        one is size 9. That's why it's pretty hardcoded. Gives in order dense 6,9,12, sparse 9.
         """
         #TODO: only replicatable if the same sizes are given in the same order.
         seed = 40

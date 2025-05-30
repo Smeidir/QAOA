@@ -2,8 +2,10 @@
 import sqlite3
 import pandas as pd
 
+from src.qaoa.models import params
+
 # Connect to the database
-db_path = "qruns.db"
+db_path = params.db_path
 conn = sqlite3.connect(db_path)
 
 # Load all rows into a DataFrame

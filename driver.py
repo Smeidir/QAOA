@@ -64,7 +64,7 @@ def monitor():
         pbar.update(delta)
 
 threading.Thread(target=monitor, daemon=True).start()
-
+print("It's running")
 # ---------------------------------------------------------------------
 # 5.  Wait for all Runner actors to exit (queue empty), then shut down
 # ---------------------------------------------------------------------

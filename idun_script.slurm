@@ -1,9 +1,9 @@
 #!/bin/sh
 #SBATCH --account="ok-iot"      # E.g. "ie-idi" if you belong to IDI
-#SBATCH --job-name="andre_job_gpu"
-#SBATCH --time=0-01:15:00         # format: D-HH:MM:SS
+#SBATCH --job-name="gpu_optimized_simulation"
+#SBATCH --time=3-00:00:00         # format: D-HH:MM:SS
 #SBATCH --partition=GPUQ          # Asking for a GPU
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:1
 #SBATCH --mem=16G                 # Asking for 16GB RAM
 #SBATCH --nodes=1
 #SBATCH --output=output.txt      # Specifying 'stdout'
@@ -29,4 +29,4 @@ pip install -r requirements.txt
 pip install qiskit-aer-gpu-cu11
 echo "=== GPUs allocated to this job ===" > gpu_check_$SLURM_JOB_ID}.txt
 nvidia-smi -L >> gpu_check_$SLURM_JOB_ID}.txt
-python papergraphs.py
+python driver.py

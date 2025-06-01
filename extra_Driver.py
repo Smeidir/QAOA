@@ -8,12 +8,12 @@ ray.init(address="auto",namespace="cb8cfc4a-c6ea-4c60-be22-9992966deb22")       
 cpus_per_worker =  params.CPUS_PER_WORKER
 queue          =  ray.get_actor("runqueue")
 
+runners_alive = len(ray._private.state.actors())
+total_cpus   = int(ray.cluster_resources()["CPU"])
+extra_needed = (total_cpus // cpus_per_worker) - runners_alive
 
-while ray.available_resources().get("CPU", 0) >= cpus_per_worker:
+for _ in range(extra_needed):
     Runner.options(num_cpus=cpus_per_worker).remote(queue)
-    # brief pause so the scheduler updates the available-CPU number
-    time.sleep(0.5)
 
-
-
-print(f"Total workers: {ray._private.state.actors()} (each using {cpus_per_worker} CPUs)")
+print(f"✅ Launched {extra_workers} new workers.")
+print(f"Total workers: {len(ray.actors())} (each using {cpus_per_worker} CPUs)")

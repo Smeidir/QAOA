@@ -16,4 +16,4 @@ for _ in range(extra_needed):
     Runner.options(num_cpus=cpus_per_worker).remote(queue)
 
 print(f"✅ Launched {extra_needed} new workers.")
-print(f"Total workers: {len(ray.actors())} (each using {cpus_per_worker} CPUs)")
+print(f"Total workers: {ray._private.state.actors()} (each using {cpus_per_worker} CPUs)")

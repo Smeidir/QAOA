@@ -15,5 +15,5 @@ extra_needed = (total_cpus // cpus_per_worker) - runners_alive
 for _ in range(extra_needed):
     Runner.options(num_cpus=cpus_per_worker).remote(queue)
 
-print(f"✅ Launched {extra_workers} new workers.")
+print(f"✅ Launched {extra_needed} new workers.")
 print(f"Total workers: {len(ray.actors())} (each using {cpus_per_worker} CPUs)")

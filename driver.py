@@ -13,7 +13,7 @@ database = params.db_path
 # ---------------------------------------------------------------------
 # 1.  Connect to (or start) Ray
 # ---------------------------------------------------------------------
-ray.init(address="auto", namespace= "cb8cfc4a-c6ea-4c60-be22-9992966deb22")                # or ray.init() for single-node test
+ray.init(address="auto")                # or ray.init() for single-node test
 
 # ---------------------------------------------------------------------
 # 2.  Spawn the central RunQueue actor (detached = survives driver exit)

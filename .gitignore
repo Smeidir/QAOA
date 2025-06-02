@@ -1,5 +1,6 @@
 email_credentials.txt
 results_underway.csv
+qiskit_settings.txt
 test_settings.txt
 __pycache__/
 "myenv/Lib/site-packages/torch/lib/"

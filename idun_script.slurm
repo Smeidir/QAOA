@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --account="ok-iot"      # E.g. "ie-idi" if you belong to IDI
-#SBATCH --job-name="cpu runs big graph"
+#SBATCH --job-name="cpu runs uniform"
 #SBATCH --time=2-00:00:00         # format: D-HH:MM:SS
 #SBATCH --partition=CPUQ          # Asking for a GPU
 #SBATCH --mem=32G                 # Asking for 16GB RAM
@@ -25,5 +25,4 @@ module purge
 module load Python/3.10.8-GCCcore-12.2.0
 module load foss/2024a
 source myenv/bin/activate
-ray start --head --port=6379 --dashboard-host 0.0.0.0
-python driver.py
+python papergraphs.py

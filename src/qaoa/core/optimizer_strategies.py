@@ -3,6 +3,7 @@ from scipy.optimize import minimize
 import numpy as np
 from qiskit.quantum_info import Statevector, DensityMatrix
 from qiskit_aer.primitives import EstimatorV2 as Estimator
+from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from time import time
 maxiter = 5000
@@ -40,7 +41,8 @@ class EstimatorOptimizer(QAOAOptimizerStrategy):
     def __init__(self, optimizer, tol, backend, shots, mitigation_fn=None):
         super().__init__(optimizer, tol)
         
-        self.estimator = Estimator.from_backend(backend=backend)
+       
+        self.estimator = RuntimeEstimator(mode=backend)
         self.estimator.options.default_shots = shots
         if mitigation_fn:
             mitigation_fn(self.estimator)
@@ -53,8 +55,8 @@ class EstimatorOptimizer(QAOAOptimizerStrategy):
             job = self.estimator.run([pub])
             result = job.result()
             cost = result[0].data.evs
-
-            return cost
+            print(params,cost)
+            return cost 
 
         return minimize(cost_func, init_params, method=self.optimizer,
                         tol=self.tol, options={'maxiter': maxiter})
@@ -103,8 +105,8 @@ class NoOptimizerStrategy(QAOAOptimizerStrategy):
             pub = (circuit)
             sampler = Sampler(mode=self.backend)
             sampler.options.default_shots = self.shots
-            if self.mode == 'quantum_backend':
-                self.set_error_mitigation(sampler)
+            #if self.mode == 'quantum_backend':
+            #    self.set_error_mitigation(sampler)
             job = sampler.run([pub])
             counts_int = job.result()[0].data.meas.get_int_counts()
             shots = sum(counts_int.values())

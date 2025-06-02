@@ -42,7 +42,7 @@ if ray.is_initialized():
 ray.init(log_to_driver=True)
 
 
-graphs= [problem.get_erdos_renyi_graphs_paper1()]
+graphs= [problem.get_erdos_renyi_graphs_paper1()[1], problem.get_erdos_renyi_graphs_paper1()[3]]
 graphs.reverse() #- reverse if the largest graphs are the last!
 
 graphs = list(itertools.chain.from_iterable(graphs)) #should be lists from before, no?

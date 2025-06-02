@@ -55,7 +55,6 @@ class EstimatorOptimizer(QAOAOptimizerStrategy):
             job = self.estimator.run([pub])
             result = job.result()
             cost = result[0].data.evs
-            print(params,cost)
             return cost 
 
         return minimize(cost_func, init_params, method=self.optimizer,

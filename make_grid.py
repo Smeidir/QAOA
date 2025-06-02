@@ -19,7 +19,7 @@ settings = {
     "param_initialization":["gaussian"],
     "depth":               [1,4,7],
     "warm_start":          [True],
-    "hamming_dist":        [3],
+    "hamming_dist":        [1],
     "problem_type":        ["minvertexcover"]
 }
 

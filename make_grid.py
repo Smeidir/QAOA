@@ -14,19 +14,20 @@ import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
 #    (edit here whenever you change an experiment)
 # ----------------------------------------------------------------------
 settings = {
-    "backend_mode":        ["noisy_sampling"],              # or ['noisy_sampling']
-    "qaoa_variant":        ["multiangle"],
+    "backend_mode":        ["statevector"],              # or ['noisy_sampling']
+    "qaoa_variant":        ["vanilla","multiangle"],
     "param_initialization":["gaussian"],
-    "depth":               [7],
+    "depth":               [1, 2, 3, 4, 5,6,8,9,10],         # QAOA depth
     "warm_start":          [False],
     "hamming_dist":        [0],
-    "problem_type":        ["minvertexcover"]
+    "problem_type":        ["minvertexcover"],
+    "maxiter":            [500],   
 }
 
 graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
 
 # Filter out specific graphs that should be excluded
-graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0", "paper1_1","paper1_2"]}
+#graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0", "paper1_1","paper1_2"]}
 
 
 # ----------------------------------------------------------------------

@@ -6,7 +6,6 @@ from qiskit_aer.primitives import EstimatorV2 as Estimator
 from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from time import time
-maxiter = 5000
 
 class QAOAOptimizerStrategy(ABC):
     def __init__(self, optimizer, tol):
@@ -24,7 +23,7 @@ class StatevectorOptimizer(QAOAOptimizerStrategy):
         super().__init__(optimizer, tol)
         self.backend = backend
     
-    def minimize(self, init_params, circuit, hamiltonian):
+    def minimize(self, init_params, circuit, hamiltonian, maxiter):
         def cost_func(params):
             sv = Statevector.from_instruction(circuit.assign_parameters(params))
             cost = np.real(sv.expectation_value(hamiltonian))
@@ -47,7 +46,7 @@ class EstimatorOptimizer(QAOAOptimizerStrategy):
         if mitigation_fn:
             mitigation_fn(self.estimator)
 
-    def minimize(self, init_params, circuit, hamiltonian):
+    def minimize(self, init_params, circuit, hamiltonian, maxiter):
         isa_hamiltonian = hamiltonian.apply_layout(circuit.layout)
 
         def cost_func(params):

@@ -18,8 +18,8 @@ settings = {
     "qaoa_variant":        ["multiangle"],
     "param_initialization":["gaussian"],
     "depth":               [7],
-    "warm_start":          [True],
-    "hamming_dist":        [3],
+    "warm_start":          [False],
+    "hamming_dist":        [0],
     "problem_type":        ["minvertexcover"]
 }
 

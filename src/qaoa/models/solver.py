@@ -90,7 +90,7 @@ class MaxCutSolver(Solver):
 
             for (i,j, w) in self.graph.weighted_edge_list():            
                 objective+= w*(self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
-        except AttributeError:
+        except AttributeError or TypeError: 
             for (i,j) in self.graph.edge_list():            
                 objective+= (self.variables[i] + self.variables[j] - 2*self.variables[i]*self.variables[j]) 
 
@@ -105,8 +105,14 @@ class MaxCutSolver(Solver):
         Mark infeasible is for better plotting of solutions.
         """
         objective_value = 0
-        for (i, j, w) in self.graph.weighted_edge_list():
-            objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
+        try: 
+            for (i, j, w) in self.graph.weighted_edge_list():
+                print(bitstring[i], bitstring[j], w )
+                objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
+        except TypeError:
+            for (i, j) in self.graph.edge_list():
+                objective_value += (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
+                
         return objective_value
     
 
@@ -173,7 +179,9 @@ class MinVertexCoverSolver(Solver):
         """
         Evaluates the objective value for a given bitstring.
         Does so based on what type of problem the solves is initialized for. 
-        Mark infeasible is for better plotting of solutions.
+        Mark infeasible is for better plotting of solutions. If mark_infeasible = True, will return
+        a tuple where the 0-th index is the objective value with violation penalty, and the 
+        1-index is boolean where True indicates infeasible solution.
         """
         is_infeasible = 0
         obj_value = self.B*sum([bitstring[i]*self.graph[i] for i in range(len(bitstring))])

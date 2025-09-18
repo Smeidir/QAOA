@@ -1,6 +1,6 @@
 import time
 import matplotlib
-from qiskit.quantum_info import Statevector, DensityMatrix,Operator, SparsePauliOp
+from qiskit.quantum_info import Operator, SparsePauliOp
 import numpy as np
 import rustworkx as rx
 from matplotlib import pyplot as plt
@@ -8,7 +8,6 @@ from qiskit.circuit.library import HGate, QAOAAnsatz
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 from qiskit_optimization.converters import QuadraticProgramToQubo
 from qiskit_optimization.translators import to_ising
-from scipy.optimize import minimize
 from src.qaoa.models import params
 from src.qaoa.core.parameter_init import get_init_params
 from src.qaoa.core.backend_builder import get_backend
@@ -31,8 +30,8 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, hamming_dist = 0, maxiter= 5000):
+    def __init__(self, graph, backend_mode = 'statevector', param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
+                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-4, amount_shots = 1000, lagrangian_multiplier = 2, hamming_dist = 0, epsilon = 0.3):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -68,6 +67,8 @@ class QAOArunner():
         self.hamming_string = None
         self.maxiter = maxiter  
         self.hamming_obj_func = None
+        self.epsilon = epsilon
+        self.final_expectation_value = None
 
     def to_dict(self):
         """
@@ -96,7 +97,9 @@ class QAOArunner():
             'percent_measure_optimal': self.get_prob_measure_optimal(),
             'hamming_dist': self.hamming_dist,
             'hamming_string': self.hamming_string,
-            'hamming_obj_func': self.hamming_obj_func
+            'hamming_obj_func': self.hamming_obj_func,
+            'epsilon': self.epsilon,
+            'final_expectation_value': self.final_expectation_value
 
         }
 
@@ -107,6 +110,7 @@ class QAOArunner():
         """
         conv = QuadraticProgramToQubo()
         cost_hamiltonian = to_ising(conv.convert(self.solver.get_qp())) # check if this can be the last step TODO
+        self.offset = cost_hamiltonian[1]
         cost_hamiltonian_tuples = [(pauli, coeff) for pauli, coeff in zip([str(x) for x in cost_hamiltonian[0].paulis], cost_hamiltonian[0].coeffs)]
         
         cost_hamiltonian = SparsePauliOp.from_list(cost_hamiltonian_tuples) 
@@ -195,11 +199,13 @@ class QAOArunner():
         strategy = self._select_optimizer_strategy()
         result = strategy.minimize(init_params, self.circuit, self.cost_hamiltonian, self.maxiter)
         self.final_params = result.x
+        self.final_expectation_value = result.fun + self.offset
         self.time_elapsed = time.time() -self.start_time
         self.result = result
         self.fev = result.nfev
         self.solution = self.calculate_solution()
         self.objective_value = self.evaluate_solution()
+        self.feasible = not self.solver.evaluate_bitstring(self.solution, mark_infeasible=True)[1]
 
 
     def run_no_optimizer(self, n = 50):
@@ -249,9 +255,11 @@ class QAOArunner():
         hammings = self.solver.get_feasible_solutions_hamming()
         modified_solution = rng.choice(hammings[self.hamming_dist])
 
+        modified_solution = [x + (1-2*x)*self.epsilon for x in modified_solution]
+
         self.hamming_string = modified_solution
         self.hamming_obj_func = self.solver.evaluate_bitstring(modified_solution)
-        return [-np.pi/2 + (1 - 2 * x) * np.arctan(bias) for x in modified_solution]
+        return 2*np.arcsin(np.sqrt(modified_solution))
 
 
 
@@ -333,6 +341,8 @@ class QAOArunner():
         matplotlib.rcParams.update({"font.size": 10})
         final_distribution_int = self.get_bitstring_probabilities()
 
+
+
         final_bits = {to_bitstring_str(k,self.num_qubits):v for k, v in final_distribution_int.items()}
         values = np.abs(list(final_bits.values()))
         #top_4_values = sorted(values, reverse=True)[:4]
@@ -348,15 +358,18 @@ class QAOArunner():
         plt.title("Result Distribution")
         plt.xlabel("Bitstrings (reversed)")
         plt.ylabel("Probability")
+        avg = []
         ax.bar(list(final_bits.keys()), list(final_bits.values()), color="tab:grey")
         for p in positions:
             ax.get_children()[int(p)].set_color("tab:purple")
         for i, bitstr in enumerate(final_bits.keys()):
             bitstring = list(reversed([int(bit) for bit in bitstr]))
             value = self.solver.evaluate_bitstring(bitstring, mark_infeasible=True)
+            avg.append(value[0]*final_bits[bitstr])
             if value[1]:
                 ax.text(i, final_bits[bitstr], f'{value[0]:.2f}', ha='center', va='bottom', color='red')
             else:
                 ax.text(i, final_bits[bitstr], f'{value[0]:.2f}', ha='center', va='bottom')
+        print('Expected objective value from distribution:', np.sum(avg))
         plt.show()
 

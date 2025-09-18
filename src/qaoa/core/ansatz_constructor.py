@@ -10,8 +10,8 @@ def build_ansatz(mode, cost_hamiltonian, qubits, depth , warm_start_seed = None)
             return _build_vanilla_ansatz(cost_hamiltonian, qubits,depth, warm_start_seed)
         case 'multiangle':
             return _build_multiangle_ansatz(cost_hamiltonian, qubits,depth, warm_start_seed)
-        case 'controlled':
-            return _build_constrained_ansatz(cost_hamiltonian, qubits, depth, warm_start_seed)
+       # case 'controlled':
+       #    return _build_constrained_ansatz(cost_hamiltonian, qubits, depth, warm_start_seed)
 
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
@@ -32,9 +32,9 @@ def _build_vanilla_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, dept
     mixer = QuantumCircuit(num_qubits)
     beta = Parameter("β")
     for q, theta in enumerate(thetas):
-        mixer.ry(theta, q)
-        mixer.rz(2 * beta, q)
         mixer.ry(-theta, q)
+        mixer.rz(2 * beta, q)
+        mixer.ry(theta, q)
 
     return QAOAAnsatz(cost_operator=cost_hamiltonian, mixer_operator=mixer,
                       initial_state=initial_state, reps=depth, flatten=True)
@@ -68,13 +68,13 @@ def _build_multiangle_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, d
 
         for i in range(num_qubits):
             if warm_start_seed:
-                qc.ry(warm_start_seed[i], i)
+                qc.ry(-warm_start_seed[i], i)
             qc.rx(2 * beta_params[i], i)
             if warm_start_seed:
-                qc.ry(-warm_start_seed[i], i)
+                qc.ry(warm_start_seed[i], i)
     return qc
 
-        
+"""      
 def _build_constrained_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, depth: int,
                           warm_start_seed=None) -> QuantumCircuit:
     if warm_start_seed is None:
@@ -105,3 +105,4 @@ def _build_constrained_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, 
 
     return QAOAAnsatz(cost_operator=cost_hamiltonian, mixer_operator=mixer,
                       initial_state=initial_state, reps=depth, flatten=True)
+"""

@@ -14,12 +14,11 @@ import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
 #    (edit here whenever you change an experiment)
 # ----------------------------------------------------------------------
 settings = {
-    "backend_mode":        ["noisy_sampling"],              # or ['noisy_sampling']
-    "qaoa_variant":        ["multiangle"],
-    "param_initialization":["gaussian"],
-    "depth":               [7],         # QAOA depth
-    "warm_start":          [False],
-    "hamming_dist":        [0],
+    "backend_mode":        ["statevector"],              # or ['noisy_sampling']
+    "qaoa_variant":        ["vanilla"],
+    "param_initialization":["uniform"],
+    "depth":               [1, 2],
+    "warm_start":          [False,True],
     "problem_type":        ["minvertexcover"]
 }
 

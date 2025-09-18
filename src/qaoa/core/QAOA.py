@@ -29,8 +29,8 @@ class QAOArunner():
     initialization: string, the method of initializing the weights
     optimizer: what scipy optimizer to use.
     """
-    def __init__(self, graph, backend_mode = 'statevector', param_initialization="gaussian",optimizer="COBYLA", qaoa_variant ='vanilla', 
-                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-8, amount_shots = 5000, lagrangian_multiplier = 2, hamming_dist = 0, epsilon = 0.3):
+    def __init__(self, graph, backend_mode = 'statevector', param_initialization="uniform",optimizer="COBYLA", qaoa_variant ='vanilla', 
+                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-4, amount_shots = 1000, lagrangian_multiplier = 2, hamming_dist = 0, epsilon = 0.3):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')

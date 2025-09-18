@@ -16,9 +16,9 @@ import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
 settings = {
     "backend_mode":        ["statevector"],              # or ['noisy_sampling']
     "qaoa_variant":        ["vanilla"],
-    "param_initialization":["gaussian"],
+    "param_initialization":["uniform"],
     "depth":               [1, 2],
-    "warm_start":          [True],
+    "warm_start":          [False,True],
     "problem_type":        ["minvertexcover"]
 }
 

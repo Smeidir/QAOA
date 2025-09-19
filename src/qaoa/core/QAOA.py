@@ -99,7 +99,8 @@ class QAOArunner():
             'hamming_string': self.hamming_string,
             'hamming_obj_func': self.hamming_obj_func,
             'epsilon': self.epsilon,
-            'final_expectation_value': self.final_expectation_value
+            'final_expectation_value': self.final_expectation_value,
+            'feasible': self.feasible
 
         }
 

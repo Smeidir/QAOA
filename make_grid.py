@@ -25,7 +25,7 @@ settings = {
 graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
 
 # Filter out specific graphs that should be excluded
-graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0", "paper1_1","paper1_2"]}
+#graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0", "paper1_1","paper1_2"]}
 
 
 # ----------------------------------------------------------------------

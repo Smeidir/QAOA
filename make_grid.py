@@ -17,7 +17,7 @@ settings = {
     "backend_mode":        ["statevector"],              # or ['noisy_sampling']
     "qaoa_variant":        ["vanilla"],
     "param_initialization":["uniform"],
-    "depth":               [1, 2],
+    "depth":               [1,4,7,10],
     "warm_start":          [False,True],
     "problem_type":        ["minvertexcover"]
 }

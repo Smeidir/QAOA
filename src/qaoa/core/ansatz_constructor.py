@@ -44,7 +44,7 @@ def _build_multiangle_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, d
     cost_terms = list(zip([str(p) for p in cost_hamiltonian.paulis], cost_hamiltonian.coeffs))
     qc = QuantumCircuit(num_qubits)
 
-    if warm_start_seed:
+    if warm_start_seed is not None:
         for i, theta in enumerate(warm_start_seed):
             qc.ry(theta, i)
     else:

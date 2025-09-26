@@ -70,7 +70,7 @@ def _build_multiangle_ansatz(cost_hamiltonian: SparsePauliOp, num_qubits: int, d
             if warm_start_seed is not None:
                 qc.ry(-warm_start_seed[i], i)
             qc.rx(2 * beta_params[i], i)
-            if warm_start_seed:
+            if warm_start_seed is not None:
                 qc.ry(warm_start_seed[i], i)
     return qc
 

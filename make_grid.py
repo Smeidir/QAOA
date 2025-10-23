@@ -17,15 +17,16 @@ settings = {
     "backend_mode":        ["statevector"],              # or ['noisy_sampling']
     "qaoa_variant":        ["vanilla"],
     "param_initialization":["uniform"],
-    "depth":               [1,4,7,10],
-    "warm_start":          [False,True],
+    "depth":               [4],
+    "warm_start":          [False],
+    "lagrangian_multiplier": [1,4,10],
     "problem_type":        ["minvertexcover"]
 }
 
 graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
 
 # Filter out specific graphs that should be excluded
-#graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0", "paper1_1","paper1_2"]}
+graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0","paper1_3"]}
 
 
 # ----------------------------------------------------------------------
@@ -85,6 +86,6 @@ def main(db_path: pathlib.Path, reps: int):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--db",   default="qruns.db", help="SQLite file")
-    ap.add_argument("--reps", type=int, default=30, help="repetitions")
+    ap.add_argument("--reps", type=int, default=50, help="repetitions")
     args = ap.parse_args()
     main(pathlib.Path(args.db), args.reps)

@@ -3,6 +3,7 @@ from scipy.optimize import minimize
 import numpy as np
 from qiskit.quantum_info import Statevector
 from qiskit_aer.primitives import EstimatorV2 as Estimator
+from qiskit_algorithms.optimizers import SPSA
 from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
 from time import time
@@ -29,8 +30,12 @@ class StatevectorOptimizer(QAOAOptimizerStrategy):
             cost = np.real(sv.expectation_value(hamiltonian))
 
             return cost      
-    
-        result = minimize(cost_func, init_params, method=self.optimizer,
+        if self.optimizer == "SPSA":
+
+            result = SPSA(maxiter=maxiter).minimize(fun=cost_func, x0=init_params)
+            print("Note: SPSA optimizer does not support tol parameter.")
+        else: 
+            result = minimize(cost_func, init_params, method=self.optimizer,
             tol=self.tol, options={'maxiter': maxiter})
         return result
 

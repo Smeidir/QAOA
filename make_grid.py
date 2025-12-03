@@ -3,7 +3,7 @@
 Generate every combination in `settings`, add a random seed, and
 INSERT one row per (combination, repetition) into qruns.db.
 
-Run:   python make_grid.py --reps 30          # default db = qruns.db
+Run:   python make_grid.py --reps 50          # default db = qruns.db
        python make_grid.py --db alt.db --reps 10
 """
 
@@ -13,20 +13,21 @@ import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
 # 1. Your original settings block
 #    (edit here whenever you change an experiment)
 # ----------------------------------------------------------------------
+
 settings = {
-    "backend_mode":        ["statevector"],              # or ['noisy_sampling']
-    "qaoa_variant":        ["vanilla"],
+    "backend_mode":        ["statevector"],             
+    "qaoa_variant":        ["vanilla","multiangle"],
     "param_initialization":["uniform"],
-    "depth":               [4],
+    "depth":               [1,4,7,10],
     "warm_start":          [False],
-    "lagrangian_multiplier": [1,4,10],
+    "lagrangian_multiplier": [2],
     "problem_type":        ["minvertexcover"]
 }
 
 graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
 
 # Filter out specific graphs that should be excluded
-graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0","paper1_3"]}
+#graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0","paper1_3"]}
 
 
 # ----------------------------------------------------------------------
@@ -89,3 +90,53 @@ if __name__ == "__main__":
     ap.add_argument("--reps", type=int, default=50, help="repetitions")
     args = ap.parse_args()
     main(pathlib.Path(args.db), args.reps)
+
+"""
+Code blocks for paper:
+
+
+settings = {
+    "backend_mode":        ["statevector"],             
+    "qaoa_variant":        ["vanilla","multiangle"],
+    "param_initialization":["uniform"],
+    "depth":               [1,4,7,10],
+    "warm_start":          [False],
+    "lagrangian_multiplier": [2],
+    "problem_type":        ["minvertexcover"]
+}
+
+Next, only for graph size 9
+settings = {
+    "backend_mode":        ["statevector"],             
+    "qaoa_variant":        ["vanilla"],
+    "param_initialization":["uniform"],
+    "depth":               [4],
+    "warm_start":          [False],
+    "lagrangian_multiplier": [1,4,10], #since 2 already exists
+    "problem_type":        ["minvertexcover"]
+}
+settings = {
+    "backend_mode":        ["statevector"],             
+    "qaoa_variant":        ["multiangle"],
+    "param_initialization":["uniform"],
+    "depth":               [1],
+    "warm_start":          [False],
+    "lagrangian_multiplier": [1,4,10], #since 2 already exists
+    "problem_type":        ["minvertexcover"]
+}
+Still only size 9: 
+settings = {
+    "backend_mode":        ["statevector"],             
+    "qaoa_variant":        ["vanilla"],
+    "param_initialization":["uniform"],
+    "depth":               [4],
+    "warm_start":          [False],
+    "lagrangian_multiplier": [1,2,4,10],
+    "problem_type":        ["minvertexcover"],
+    "warm_start":          [True],
+    "hamming_dist":      [0,1,3,5],
+
+}
+
+
+"""

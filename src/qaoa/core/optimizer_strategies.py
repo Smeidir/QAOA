@@ -32,8 +32,8 @@ class StatevectorOptimizer(QAOAOptimizerStrategy):
             return cost      
         if self.optimizer == "SPSA":
 
-            result = SPSA(maxiter=maxiter).minimize(fun=cost_func, x0=init_params)
-            print("Note: SPSA optimizer does not support tol parameter.")
+            result = SPSA(maxiter=maxiter/2).minimize(fun=cost_func, x0=init_params)
+            #print("Note: SPSA optimizer does not support tol parameter.")
         else: 
             result = minimize(cost_func, init_params, method=self.optimizer,
             tol=self.tol, options={'maxiter': maxiter})

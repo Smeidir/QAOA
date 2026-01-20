@@ -18,7 +18,7 @@ settings = {
     "backend_mode":        ["statevector"],             
     "qaoa_variant":        ["vanilla","multiangle"],
     "param_initialization":["uniform"],
-    "optimizer": 	   ["COBYLA"],
+    "optimizer": 	   ["SPSA"],
     "depth":               [1,4,7,10],
     "warm_start":          [False],
     "lagrangian_multiplier": [2],

@@ -26,8 +26,8 @@ settings = {
     "warm_start":          [False],
     "lagrangian_multiplier": [2],
     "problem_type":        ["minvertexcover"],
-    "graph_size":           [6,8,10,12],
-    "graph_degree":         [3,5],
+    "graph_size":           [6,10],
+    "graph_degree":         [3],
     "graph_weighted":        [False]
 }
 #Configure graphs here:

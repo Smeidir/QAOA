@@ -8,7 +8,7 @@ Run:   python make_grid.py --reps 50          # default db = qruns.db
 """
 
 import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle, base64
-from src.qaoa.models import MaxCutProblem
+from src.qaoa.models.MaxCutProblem import MaxCutProblem
 import rustworkx as rx
 problem = MaxCutProblem()
 
@@ -19,10 +19,10 @@ problem = MaxCutProblem()
 
 settings = {
     "backend_mode":        ["statevector"],             
-    "qaoa_variant":        ["vanilla","multiangle"],
-    "param_initialization":["uniform"],
-    "optimizer": 	   ["SPSA"],
-    "depth":               [1,4,7,10],
+    "qaoa_variant":        ["vanilla"],
+    "param_initialization":["interpolation"],
+    "optimizer": 	   ["COBYLA"],
+    "depth":               [2,4,6,8],
     "warm_start":          [False],
     "lagrangian_multiplier": [2],
     "problem_type":        ["minvertexcover"],

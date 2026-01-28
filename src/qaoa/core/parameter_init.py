@@ -20,6 +20,8 @@ def get_init_params(strategy: str , depth: int, cost_length : int = 1, mixer_len
         return _init_gaussian(depth, cost_length, mixer_length)
     elif strategy == "static":
         return _init_static(depth, cost_length, mixer_length)
+    elif strategy =="interpolation":
+        return _init_interpolation(depth, cost_length, mixer_length)
     else:
         raise ValueError(f"Unsupported init strategy: {strategy}")
 
@@ -60,4 +62,13 @@ def _init_static(depth, cost_length, mixer_length):
         else: #mixer parameter
             new_params.extend([param]*mixer_length)
     init_params = np.array(new_params)
+    return init_params
+
+def _init_interpolation(depth, cost_length, mixer_length):
+    step_size = 1/depth
+    if cost_length != mixer_length:
+        raise ValueError("Unequal cost and mixer length implies multiangle, which this function is not intended for.")
+    init_params = np.array([[n*step_size*np.pi,(1-n*step_size)*np.pi] for n in range(0,depth)])
+    init_params = init_params.flatten()
+
     return init_params

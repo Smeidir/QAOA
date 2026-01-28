@@ -25,7 +25,7 @@ class RunQueue:
                 WHERE state='pending'
                 ORDER BY
                   json_extract(params, '$.depth') DESC,
-                  json_extract(params, '$.graph_path') DESC,
+                  json_extract(params, '$.graph_size') DESC,
                   json_extract(params, '$.qaoa_variant')
                 LIMIT 1
               )

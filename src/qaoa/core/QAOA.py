@@ -1,3 +1,4 @@
+import pickle
 import time
 import matplotlib
 from qiskit.quantum_info import Operator, SparsePauliOp
@@ -31,7 +32,8 @@ class QAOArunner():
     optimizer: what scipy optimizer to use.
     """
     def __init__(self, graph, backend_mode = 'statevector', param_initialization="uniform",optimizer="SPSA", qaoa_variant ='vanilla', maxiter = 5000, 
-                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-4, amount_shots = 1024, lagrangian_multiplier = 2, hamming_dist = 0, epsilon = 0.3):
+                 warm_start=False,depth = 1, problem_type = 'maxcut',max_tol = 1e-4, amount_shots = 1024, lagrangian_multiplier = 2, hamming_dist = 0, epsilon = 0.3, graph_weighted = None
+        , graph_degree = None, graph_size = None):
         
         if qaoa_variant not in params.supported_qaoa_variants:
             raise ValueError(f'Non-supported QAOA variant. Your param: {qaoa_variant} not in supported parameters:{params.supported_qaoa_variants}.')
@@ -54,7 +56,6 @@ class QAOArunner():
         self.depth = depth
         self.problem_type = problem_type
         self.max_tol = max_tol
-        self.problem_type = problem_type
         self.amount_shots = amount_shots
         self.lagrangian_multiplier = lagrangian_multiplier
         self.solver = create_solver(self.graph, problem_type=self.problem_type, lagrangian = self.lagrangian_multiplier) 
@@ -69,6 +70,10 @@ class QAOArunner():
         self.hamming_obj_func = None
         self.epsilon = epsilon
         self.final_expectation_value = None
+        self.graph_degree = graph_degree
+        self.graph_weighted = graph_weighted
+        self.graph_size = graph_size
+     
 
     def to_dict(self):
         """
@@ -100,7 +105,10 @@ class QAOArunner():
             'hamming_obj_func': self.hamming_obj_func,
             'epsilon': self.epsilon,
             'final_expectation_value': self.final_expectation_value,
-            'feasible': self.feasible
+            'feasible': self.feasible,
+            'graph_degree': 2*len(self.graph.edges())/len(self.graph.nodes()),
+            'graph' : pickle.dumps(self.graph),
+            'graph_weighted' : self.graph_weighted
 
         }
 

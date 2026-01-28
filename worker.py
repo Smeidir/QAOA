@@ -47,15 +47,14 @@ class Runner:
         Everything except graph_path / graph_label / seed is passed into
         QAOArunner(**kwargs).
         """
-        graph_file  = pathlib.Path(cfg.pop("graph_path"))
-        graph_label = cfg.pop("graph_label", graph_file.stem)
+
 
         # ---- output folder for this run --------------------------------
 
         # ---- load the graph (retworkx pickle) --------------------------
-        with graph_file.open("rb") as f:
-            graph_obj = pickle.load(f)
-
+        #with graph_file.open("rb") as f:
+        #    graph_obj = pickle.load(f)
+        graph_obj = pickle.load(cfg.pop("graph_pickle"))
         # ---- build & run QAOA -----------------------------------------
         qaoa = QAOArunner(graph_obj, **cfg)   # cfg now only has QAOA kwargs
         qaoa.build_circuit()
@@ -64,7 +63,6 @@ class Runner:
         # ---- collect results ------------------------------------------
         result_dict = qaoa.to_dict()
         result_dict.update({
-            "graph_label": graph_label,
             **cfg          # echoes hyper-params for downstream analysis
         })
 

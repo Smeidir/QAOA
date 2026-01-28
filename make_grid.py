@@ -8,6 +8,9 @@ Run:   python make_grid.py --reps 50          # default db = qruns.db
 """
 
 import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
+from src.qaoa.models import MaxCutProblem
+import rustworkx as rx
+problem = MaxCutProblem()
 
 # ----------------------------------------------------------------------
 # 1. Your original settings block
@@ -22,10 +25,16 @@ settings = {
     "depth":               [1,4,7,10],
     "warm_start":          [False],
     "lagrangian_multiplier": [2],
-    "problem_type":        ["minvertexcover"]
+    "problem_type":        ["minvertexcover"],
+    "graph_size":           [6,8,10,12],
+    "graph_degree":         [3,5],
+    "graph_weighted":        [False]
 }
+#Configure graphs here:
 
-graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
+
+
+#graph_paths = json.load(open("graph_paths.json"))   # {'paper1_0': '/scratch/…'}
 
 # Filter out specific graphs that should be excluded
 #graph_paths = {k: v for k, v in graph_paths.items() if k not in ["paper1_0","paper1_3"]}
@@ -58,15 +67,14 @@ def build_rows(reps: int):
     keys, ranges = zip(*settings.items())          # ('backend_mode', 'qaoa_variant', ...)
     for combo in itertools.product(*ranges):
         hp = dict(zip(keys, combo))                # one concrete hyper-param set
-
-        # Add one job row per graph label × repetition
-        for g_label, g_path in graph_paths.items():     # graph_paths from graph_paths.json
-            base = {
-                "graph_label": g_label,               # optional, handy for logs
-                "graph_path":  g_path,                # <- workers pickle.load() this
-                **hp
-            }
-            for _ in range(reps):
+        for _ in range(reps):
+            # Add one job row per graph label × repetition
+            for graph, degree, weights in zip(settings['graph_degree'], settings["graph_size"], settings['graph_weighted']):     # graph_paths from graph_paths.json
+                base = {
+                    "graph_pickle": problem.random_regular_rx(graph,degree, weights = weights),               
+                    **hp
+                }
+                
                 row_dict = {**base}
                 yield json.dumps(row_dict), "pending"
 

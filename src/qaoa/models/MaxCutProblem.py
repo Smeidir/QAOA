@@ -40,6 +40,20 @@ class MaxCutProblem():
     def get_complete_graphs(self,sizes):
         return [rx.generators.complete_graph(size) for size in sizes]
     
+    def random_regular_rx(self, n, d, weights=False, seed=None):
+        g_nx = nx.random_regular_graph(d, n, seed=seed)
+
+        rng = np.random.default_rng(seed)
+        g_rx = rx.networkx_converter(g_nx)
+        # node indices will be 0..n-1, payload is whatever you pass here
+        for i in range(n-1):
+            g_rx[i] = rng.uniform(0.25,1)
+
+
+
+        return g_rx
+
+        
     def get_test_graphs(self, n = 5):
         graph_dir = 'graphs'
         graphs = []

@@ -1,5 +1,5 @@
 supported_qaoa_variants = ['vanilla', 'multiangle']
-supported_param_inits = ['uniform','gaussian','static']
+supported_param_inits = ['uniform','gaussian','static', 'interpolation']
 supported_optimizers = [
     'Nelder-Mead', 'Powell', 'CG', 'BFGS', 'Newton-CG', 'L-BFGS-B', 'TNC', 
     'COBYLA', 'COBYQA', 'SLSQP', 'trust-constr', 'dogleg', 'trust-ncg', 

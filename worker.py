@@ -1,5 +1,5 @@
 # worker.py  ────────────────────────────────────────────────────────────
-import ray, json, pickle, pathlib, pandas as pd, time, socket
+import ray, json, pickle, pathlib, pandas as pd, time, socket, base64
 from pathlib import Path
 from src.qaoa.core.QAOA import QAOArunner
 import json_tricks
@@ -54,8 +54,10 @@ class Runner:
         # ---- load the graph (retworkx pickle) --------------------------
         #with graph_file.open("rb") as f:
         #    graph_obj = pickle.load(f)
-        graph_obj = pickle.load(cfg.pop("graph_pickle"))
-        # ---- build & run QAOA -----------------------------------------
+
+        graph_b64 = cfg.pop("graph_pickle_b64")
+        graph_obj = pickle.loads(base64.b64decode(graph_b64.encode("ascii")))
+        qaoa = QAOArunner(graph_obj, **cfg)
         qaoa = QAOArunner(graph_obj, **cfg)   # cfg now only has QAOA kwargs
         qaoa.build_circuit()
         qaoa.run()

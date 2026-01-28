@@ -7,7 +7,7 @@ Run:   python make_grid.py --reps 50          # default db = qruns.db
        python make_grid.py --db alt.db --reps 10
 """
 
-import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle
+import itertools, sqlite3, json, secrets, argparse, datetime, pathlib,pickle, base64
 from src.qaoa.models import MaxCutProblem
 import rustworkx as rx
 problem = MaxCutProblem()
@@ -57,27 +57,28 @@ CREATE TABLE IF NOT EXISTS runs (
 import itertools, json, secrets
 
 def build_rows(reps: int):
-    """
-    Yield (params_json, 'pending') tuples for executemany().
-    Each params_json contains
-        • all hyper-parameters in `settings`
-        • graph_path  – absolute / relative path to the pickled retworkx graph
-    """
-    # Cartesian product of the hyper-parameter grid
-    keys, ranges = zip(*settings.items())          # ('backend_mode', 'qaoa_variant', ...)
+    keys, ranges = zip(*settings.items())
     for combo in itertools.product(*ranges):
-        hp = dict(zip(keys, combo))                # one concrete hyper-param set
-        for _ in range(reps):
-            # Add one job row per graph label × repetition
-            for graph, degree, weights in zip(settings['graph_degree'], settings["graph_size"], settings['graph_weighted']):     # graph_paths from graph_paths.json
-                base = {
-                    "graph_pickle": problem.random_regular_rx(graph,degree, weights = weights),               
-                    **hp
-                }
-                
-                row_dict = {**base}
-                yield json.dumps(row_dict), "pending"
+        hp = dict(zip(keys, combo))
 
+        for _ in range(reps):
+            for size in settings["graph_size"]:
+                for degree in settings["graph_degree"]:
+                    for weighted in settings["graph_weighted"]:
+                        g = problem.random_regular_rx(size, degree, weights=weighted)
+                        graph_b64 = base64.b64encode(
+                            pickle.dumps(g, protocol=pickle.HIGHEST_PROTOCOL)
+                        ).decode("ascii")
+
+                        row_dict = {
+                            **hp,
+                            "graph_size": size,
+                            "graph_degree": degree,
+                            "graph_weighted": weighted,
+                            "graph_pickle_b64": graph_b64,
+                        }
+                        yield json.dumps(row_dict), "pending"
+ 
 
 def main(db_path: pathlib.Path, reps: int):
     with sqlite3.connect(db_path) as db:

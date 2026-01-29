@@ -62,22 +62,12 @@ def build_rows(reps: int):
         hp = dict(zip(keys, combo))
 
         for _ in range(reps):
-            for size in settings["graph_size"]:
-                for degree in settings["graph_degree"]:
-                    for weighted in settings["graph_weighted"]:
-                        g = problem.random_regular_rx(size, degree, weights=weighted)
-                        graph_b64 = base64.b64encode(
-                            pickle.dumps(g, protocol=pickle.HIGHEST_PROTOCOL)
-                        ).decode("ascii")
+            g = problem.random_regular_rx(hp["graph_size"], hp["graph_degree"], weights=hp["graph_weighted"])
+            graph_b64 = base64.b64encode(pickle.dumps(g, protocol=pickle.HIGHEST_PROTOCOL)).decode("ascii")
 
-                        row_dict = {
-                            **hp,
-                            "graph_size": size,
-                            "graph_degree": degree,
-                            "graph_weighted": weighted,
-                            "graph_pickle_b64": graph_b64,
-                        }
-                        yield json.dumps(row_dict), "pending"
+            hp2 = dict(hp)
+            hp2["graph_pickle_b64"] = graph_b64
+            yield json.dumps(hp2), "pending"
  
 
 def main(db_path: pathlib.Path, reps: int):

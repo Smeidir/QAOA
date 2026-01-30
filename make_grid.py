@@ -54,20 +54,39 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 """
 
-import itertools, json, secrets
+
+GRAPH_KEYS = {"graph_size", "graph_degree", "graph_weighted"}
 
 def build_rows(reps: int):
-    keys, ranges = zip(*settings.items())
-    for combo in itertools.product(*ranges):
-        hp = dict(zip(keys, combo))
+    # Split settings into graph-defining keys vs the rest
+    graph_settings = {k: v for k, v in settings.items() if k in GRAPH_KEYS}
+    hp_settings    = {k: v for k, v in settings.items() if k not in GRAPH_KEYS}
 
+    # Cartesian product over NON-graph settings
+    hp_keys, hp_ranges = zip(*hp_settings.items()) if hp_settings else ((), ())
+
+    # Cartesian product over graph parameters (often just 1x1x1, but supports multiple)
+    g_keys, g_ranges = zip(*graph_settings.items())
+    for g_combo in itertools.product(*g_ranges):
+        g_spec = dict(zip(g_keys, g_combo))
+
+        # Make `reps` random graphs for this graph spec
         for _ in range(reps):
-            g = problem.random_regular_rx(hp["graph_size"], hp["graph_degree"], weights=hp["graph_weighted"])
-            graph_b64 = base64.b64encode(pickle.dumps(g, protocol=pickle.HIGHEST_PROTOCOL)).decode("ascii")
+            g = problem.random_regular_rx(
+                g_spec["graph_size"],
+                g_spec["graph_degree"],
+                weights=g_spec["graph_weighted"],
+            )
+            graph_b64 = base64.b64encode(
+                pickle.dumps(g, protocol=pickle.HIGHEST_PROTOCOL)
+            ).decode("ascii")
 
-            hp2 = dict(hp)
-            hp2["graph_pickle_b64"] = graph_b64
-            yield json.dumps(hp2), "pending"
+            # For each graph instance, repeat all hyperparameter combos
+            for hp_combo in itertools.product(*hp_ranges) if hp_ranges else [()]:
+                hp = dict(zip(hp_keys, hp_combo)) if hp_keys else {}
+                row = {**hp, **g_spec, "graph_pickle_b64": graph_b64}
+                yield json.dumps(row), "pending"
+
  
 
 def main(db_path: pathlib.Path, reps: int):

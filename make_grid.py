@@ -22,7 +22,7 @@ settings = {
     "qaoa_variant":        ["vanilla"],
     "param_initialization":["interpolation"],
     "optimizer": 	   ["COBYLA"],
-    "depth":               [1,4,7,10],
+    "depth":               [2,4,6,8],
     "warm_start":          [False],
     "lagrangian_multiplier": [2],
     "problem_type":        ["minvertexcover"],

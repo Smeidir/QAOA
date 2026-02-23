@@ -253,7 +253,7 @@ class MinVertexCoverSolver(Solver):
                 except KeyError:
                     feasible_solutions[self.evaluate_bitstring(bitstring)] = [bitstring]
         best_solution = feasible_solutions[min(feasible_solutions.keys())]
-        hamming_dict = {x: [] for x in range(n)}
+        hamming_dict = {x: [] for x in range(n+1)}
         for current_solution in feasible_solutions.values():
             hamming_dict[np.count_nonzero(np.array(best_solution)!=np.array(current_solution))].append(current_solution[0])
 

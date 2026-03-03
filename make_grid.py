@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS runs (
 
 GRAPH_KEYS = {"graph_size", "graph_degree", "graph_weighted"}
 
-def build_rows(reps: int):
+def build_rows(reps: int, number_of_graphs: int):
     # Split settings into graph-defining keys vs the rest
     graph_settings = {k: v for k, v in settings.items() if k in GRAPH_KEYS}
     hp_settings    = {k: v for k, v in settings.items() if k not in GRAPH_KEYS}
@@ -71,7 +71,7 @@ def build_rows(reps: int):
         g_spec = dict(zip(g_keys, g_combo))
 
         # Make `reps` random graphs for this graph spec
-        for _ in range(reps):
+        for _ in range(number_of_graphs):
             g = problem.random_regular_rx(
                 g_spec["graph_size"],
                 g_spec["graph_degree"],
@@ -85,7 +85,8 @@ def build_rows(reps: int):
             for hp_combo in itertools.product(*hp_ranges) if hp_ranges else [()]:
                 hp = dict(zip(hp_keys, hp_combo)) if hp_keys else {}
                 row = {**hp, **g_spec, "graph_pickle_b64": graph_b64}
-                yield json.dumps(row), "pending"
+                for _ in range(reps):
+                    yield json.dumps(row), "pending"
 
  
 
@@ -106,7 +107,8 @@ def main(db_path: pathlib.Path, reps: int):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--db",   default="qruns.db", help="SQLite file")
-    ap.add_argument("--reps", type=int, default=50, help="repetitions")
+    ap.add_argument("--reps", type=int, default=20, help="repetitions")
+    ap.add_argument("--ngraphs", type=int, default=50, help="numberOfGraphs")
     args = ap.parse_args()
     main(pathlib.Path(args.db), args.reps)
 

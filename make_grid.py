@@ -1,4 +1,3 @@
-# make_grid.py ----------------------------------------------------------
 """
 Generate every combination in `settings`, add a random seed, and
 INSERT one row per (combination, repetition) into qruns.db.
@@ -18,17 +17,17 @@ problem = MaxCutProblem()
 # ----------------------------------------------------------------------
 
 settings = {
-    "backend_mode":        ["statevector"],             
-    "qaoa_variant":        ["vanilla"],
-    "param_initialization":["interpolation"],
-    "optimizer": 	   ["COBYLA"],
-    "depth":               [2,4,6,8],
+    "backend_mode":        ["statevector"],
+    "qaoa_variant":        ["multiangle"],
+    "param_initialization":["uniform"],
+    "optimizer":           ["COBYLA"],
+    "depth":               [1,2,3,4,5,6,7],
     "warm_start":          [False],
     "lagrangian_multiplier": [2],
     "problem_type":        ["minvertexcover"],
-    "graph_size":           [6,10,14],
+    "graph_size":           [6,8,10,12],
     "graph_degree":         [3],
-    "graph_weighted":        [False]
+    "graph_weighted":        [True]
 }
 #Configure graphs here:
 
@@ -88,7 +87,7 @@ def build_rows(reps: int, ngraphs: int):
                 for _ in range(reps):
                     yield json.dumps(row), "pending"
 
- 
+
 
 def main(db_path: pathlib.Path, reps: int, ngraphs: int):
     with sqlite3.connect(db_path) as db:
@@ -117,7 +116,7 @@ Code blocks for paper:
 
 
 settings = {
-    "backend_mode":        ["statevector"],             
+    "backend_mode":        ["statevector"],
     "qaoa_variant":        ["vanilla","multiangle"],
     "param_initialization":["uniform"],
     "depth":               [1,4,7,10],
@@ -128,7 +127,7 @@ settings = {
 
 Next, only for graph size 9
 settings = {
-    "backend_mode":        ["statevector"],             
+    "backend_mode":        ["statevector"],
     "qaoa_variant":        ["vanilla"],
     "param_initialization":["uniform"],
     "depth":               [4],
@@ -137,7 +136,7 @@ settings = {
     "problem_type":        ["minvertexcover"]
 }
 settings = {
-    "backend_mode":        ["statevector"],             
+    "backend_mode":        ["statevector"],
     "qaoa_variant":        ["multiangle"],
     "param_initialization":["uniform"],
     "depth":               [1],
@@ -145,9 +144,9 @@ settings = {
     "lagrangian_multiplier": [1,4,10], #since 2 already exists
     "problem_type":        ["minvertexcover"]
 }
-Still only size 9: 
+Still only size 9:
 settings = {
-    "backend_mode":        ["statevector"],             
+    "backend_mode":        ["statevector"],
     "qaoa_variant":        ["vanilla"],
     "param_initialization":["uniform"],
     "depth":               [4],

@@ -107,7 +107,6 @@ class MaxCutSolver(Solver):
         objective_value = 0
         try: 
             for (i, j, w) in self.graph.weighted_edge_list():
-                print(bitstring[i], bitstring[j], w )
                 objective_value += w * (bitstring[i] + bitstring[j] - 2 * bitstring[i] * bitstring[j])
         except TypeError:
             for (i, j) in self.graph.edge_list():

@@ -7,4 +7,4 @@ __pycache__/
 myenv/
 .ipynb_checkpoints
 env/
-qruns_large.db
+qruns_*.db
